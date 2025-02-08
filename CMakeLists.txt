@@ -9,7 +9,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 #cmake -S . -B bin
 #cmake --build bin
 
-#./bin/src/test/TestCNN
+#./bin/src/test/Test_CNN
 
 #git add .
 #git commit -m "commit_name"

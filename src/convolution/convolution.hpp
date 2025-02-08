@@ -174,6 +174,23 @@ class Wmatrix{
         }
 };
 
+template<size_t D_curr>
+class Bmatrix{
+    double (*ptrarr)[D_curr];
+    public:
+    double rowDim;
+    Bmatrix(double (*ptr_array)[D_curr]) : ptrarr(ptr_array) {
+        rowDim = D_curr;
+    }
+    double operator()(size_t rowInx){
+        if(rowInx<rowDim){
+            return (*ptrarr)[rowInx];
+        }else{
+            std::cout<<"Bmatrix index "<<rowInx<<" out of range "<<D_curr<<std::endl;
+            throw 0;
+        }
+    }
+};
 
 
 template<size_t D_prev, size_t D_curr, size_t W_window, size_t H_window, size_t W_prev, size_t H_prev, size_t W_curr, size_t H_curr>
@@ -185,6 +202,7 @@ void matMult(Wmatrix<D_prev,D_curr,W_window,H_window> W,
         std::cout<<"window Xl_0 should cover the entire depth"<<std::endl;
         throw 2;
     }
+
     if(X.windowSize.w != W_window ||
        X.windowSize.h != H_window){
         std::cout<<"window size provided to matMult template is not same ase window size in Wmatrix parameter"<<std::endl;
@@ -222,4 +240,24 @@ void matMult(Wmatrix<D_prev,D_curr,W_window,H_window> W,
     }
     }
     
+}
+
+template<size_t D_prev, size_t D_curr, size_t W_window, size_t H_window, size_t W_prev, size_t H_prev, size_t W_curr, size_t H_curr>
+void convolve(Wmatrix<D_prev,D_curr,W_window,H_window> W,
+            Bmatrix<D_curr> B,
+            Xmatrix<D_prev,W_prev,H_prev> X,
+            Ymatrix<D_curr,W_curr,H_curr> Y){
+    matMult<D_prev,D_curr,W_window,H_window,W_prev,H_prev,W_curr,H_curr>(W, X, Y);
+
+    double biasVal;
+    dim3_t Y_inx;
+    for(size_t z=0;z<D_curr;++z){
+        biasVal=B(z);
+        for(size_t x=0;x<W_curr;++x){
+        for(size_t y=0;y<H_curr;++y){
+            Y_inx={z,x,y};
+            Y.setVal(Y_inx, Y(Y_inx)+biasVal);
+        }
+        }
+    }
 }
