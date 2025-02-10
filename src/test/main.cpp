@@ -269,7 +269,7 @@ void testWmatrixMultiply(){
         0.1, 0.2, 0.3, 0.4
     };
     Bmatrix <4> Bl_1 (&Biasarrl_1);
-    convolve<2,4,2,3,3,4,2,2>(Wl_1, Bl_1, Xl_0, Yl_1);
+    affineconv<2,4,2,3,3,4,2,2>(Wl_1, Bl_1, Xl_0, Yl_1);
     std::cout<<"Yl_1 = "<<std::endl;
     Yl_1.printMatrixForm();
 

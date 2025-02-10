@@ -15,5 +15,5 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 #git commit -m "commit_name"
 #git status
 #git remote add origin https://github.com/junheeo/CNN.git
-#git remote add origin git@github.com:junheeo/git
+#git remote add origin git@github.com:junheeo/CNN.git
 #git push -u origin main

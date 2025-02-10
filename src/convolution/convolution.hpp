@@ -25,7 +25,7 @@ class Ymatrix{
         if(z>=0 && x>=0 && y>=0 && z<D && x<W && y<H){
             return (*ptrarr)[z][x][y];
         } else {
-            std::cout<<"Ymatrix index "<<z<<","<<x<<","<<y<<" out of range"<<std::endl;
+            std::cerr<<"Ymatrix index "<<z<<","<<x<<","<<y<<" out of range"<<std::endl;
             throw 0;
         }
     }
@@ -72,7 +72,7 @@ class Xmatrix{
           ) {
             beginInx = {z, x, y};
         } else {
-            std::cout<<"Xmatrix::setStart "<<z<<" "<<x<<" "<<y<<" out of range"<<std::endl;
+            std::cerr<<"Xmatrix::setStart "<<z<<" "<<x<<" "<<y<<" out of range"<<std::endl;
             throw 0;
         }
     }
@@ -83,7 +83,7 @@ class Xmatrix{
             size_t whole_y = beginInx.h + y;
             return whole(whole_z, whole_x, whole_y);
         } else {
-            std::cout<<"Xmatrix "<<z<<","<<x<<","<<y<<" index out of range"<<std::endl;
+            std::cerr<<"Xmatrix "<<z<<","<<x<<","<<y<<" index out of range"<<std::endl;
             throw 0;
         }
     }
@@ -97,7 +97,7 @@ class Xmatrix{
             size_t whole_y = beginInx.h + y;
             whole.setVal(whole_z, whole_x, whole_y, val);
         } else {
-            std::cout<<"Xmatrix "<<z<<","<<x<<","<<y<<" index out of range"<<std::endl;
+            std::cerr<<"Xmatrix "<<z<<","<<x<<","<<y<<" index out of range"<<std::endl;
             throw 0;
         }
     }
@@ -127,7 +127,7 @@ class Wmatrix{
                 y<colsDim.h){
                 return (*ptrarr)[z_prev][z_curr][x][y];
             }else{
-                std::cout<<"Wmatrix index "<<z_prev<<" "<<z_curr<<" "<<x<<" "<<y<<" out of range"<<std::endl;
+                std::cerr<<"Wmatrix index "<<z_prev<<" "<<z_curr<<" "<<x<<" "<<y<<" out of range"<<std::endl;
                 throw 0;
             }
         }
@@ -136,6 +136,20 @@ class Wmatrix{
         }
         double transpose (dim3_t rowInx, size_t colInx){
             return (*this)(rowInx.d, colInx, rowInx.w, rowInx.h);
+        }
+        void setVal(size_t z_prev, size_t z_curr , size_t x, size_t y, double val){
+            if(z_prev<colsDim.d && z_curr<rowDim && x<colsDim.w, y<colsDim.h){
+                (*ptrarr)[z_prev][z_curr][x][y]=val;
+            }else{
+                std::cerr<<"Wmatrix setval index ";
+                std::cerr<<z_prev<<" "<<z_curr<<" "<<x<<" "<<y<<" ";
+                std::cerr<<"out of range ";
+                std::cerr<<colsDim.d<<" "<<rowDim<<" "<<colsDim.w<<" "<<colsDim.h<<std::endl;
+                throw 0;
+            }
+        }
+        void setVal(size_t rowInx, dim3_t colInx, double val){
+            setVal(colInx.d, rowInx, colInx.w, colInx.h, val);
         }
 
         void printMatrixForm(){
@@ -186,7 +200,7 @@ class Bmatrix{
         if(rowInx<rowDim){
             return (*ptrarr)[rowInx];
         }else{
-            std::cout<<"Bmatrix index "<<rowInx<<" out of range "<<D_curr<<std::endl;
+            std::cerr<<"Bmatrix index "<<rowInx<<" out of range "<<D_curr<<std::endl;
             throw 0;
         }
     }
@@ -199,13 +213,13 @@ void matMult(Wmatrix<D_prev,D_curr,W_window,H_window> W,
             Ymatrix<D_curr,W_curr,H_curr> Y){
     /*calculate Y for Y=WX*/
     if(X.windowSize.d != D_prev){
-        std::cout<<"window Xl_0 should cover the entire depth"<<std::endl;
+        std::cerr<<"window Xl_0 should cover the entire depth"<<std::endl;
         throw 2;
     }
 
     if(X.windowSize.w != W_window ||
        X.windowSize.h != H_window){
-        std::cout<<"window size provided to matMult template is not same ase window size in Wmatrix parameter"<<std::endl;
+        std::cerr<<"window size provided to matMult template is not same ase window size in Wmatrix parameter"<<std::endl;
         throw 2;
     }
     
@@ -243,7 +257,7 @@ void matMult(Wmatrix<D_prev,D_curr,W_window,H_window> W,
 }
 
 template<size_t D_prev, size_t D_curr, size_t W_window, size_t H_window, size_t W_prev, size_t H_prev, size_t W_curr, size_t H_curr>
-void convolve(Wmatrix<D_prev,D_curr,W_window,H_window> W,
+void affineconv(Wmatrix<D_prev,D_curr,W_window,H_window> W,
             Bmatrix<D_curr> B,
             Xmatrix<D_prev,W_prev,H_prev> X,
             Ymatrix<D_curr,W_curr,H_curr> Y){
@@ -259,5 +273,87 @@ void convolve(Wmatrix<D_prev,D_curr,W_window,H_window> W,
             Y.setVal(Y_inx, Y(Y_inx)+biasVal);
         }
         }
+    }
+}
+
+template<size_t D_prev, size_t D_curr, size_t W_window, size_t H_window, size_t W_prev, size_t H_prev, size_t W_curr, size_t H_curr>
+struct Gradients{
+    double * dLdYprev = NULL;
+    double * dLdW = NULL;
+    double * dLdB = NULL;
+    size_t YprevgradInx (size_t z_prev, size_t x, size_t y){
+        return dLdYprev[W_prev*(D_prev*z_prev+x)+y];
+    }
+    size_t WgradInx (size_t z_prev, size_t z_curr, size_t x, size_t y){
+        return dLdW[W_window*(D_curr*(D_prev*z_prev+z_curr)+x)+y];
+    }
+    size_t BgradInx (size_t z_curr){
+        return dLdB[z_curr];
+    }
+    /* destructor */
+    ~Gradients(){
+        if(dLdYprev!=NULL){
+            delete[] dLdYprev;
+        }
+        if(dLdW!=NULL){
+            delete[] dLdW;
+        }
+        if(dLdB!=NULL){
+            delete[] dLdB;
+        }
+    }
+};
+
+template<size_t D_prev2, size_t D_curr2, size_t W_window2, size_t H_window2, size_t W_prev2, size_t H_prev2, size_t W_curr2, size_t H_curr2, 
+        size_t D_prev, size_t D_curr, size_t W_window, size_t H_window, size_t W_prev, size_t H_prev, size_t W_curr, size_t H_curr>
+void computeAffineConvGradients(Gradients<D_prev2,D_curr2,W_window2,H_window2,W_prev2,H_prev2,W_curr2,H_curr2> & inputGrads,  
+            Gradients<D_prev,D_curr,W_window,H_window,W_prev,H_prev,W_curr,H_curr> & outputGrads, 
+            Wmatrix<D_prev,D_curr,W_window,H_window> W,
+            Bmatrix<D_curr> B,
+            Xmatrix<D_prev,W_prev,H_prev> Xprev){
+
+    outputGrads.dLdYprev = new double [D_prev * W_prev * H_prev];
+    outputGrads.dLdW = new double [D_prev * D_curr * W_window * H_window];
+    outputGrads.dLdB = new double [D_curr];
+    
+    double * dLdYcurr = inputGrads.dLdYprev;
+    size_t (*YcurrgradInx) (size_t z, size_t x, size_t y) = inputGrads.YprevGradInx;
+
+
+    for(size_t xcurr=0;xcurr<W_curr;++xcurr){
+    for(size_t ycurr=0;ycurr<H_curr;++ycurr){
+        Xprev.setStart(0, xcurr, ycurr);
+        /*    Y_curr     =               W                             X_prev               +     B
+         * D_currx(1x1)    D_curr*(D_prevxW_windowxH_window)  (D_prevxW_windowxH_window)x1   D_currx(1x1)
+         *
+         *    dL/d(W X_prev) = dL/dY_curr * dY_curr/d(W X_prev) = dL/dYcurr * 1 = dL/d(Y_curr)
+         *
+         *    dL/dX_prev = dL/d(W X_prev) d(W X_prev)/dXprev = dL/d(Y_curr) d(W X_prev)/dXprev
+         *
+         *    dL/dX_prev             =               W.transpose               dL/dYcurr
+         * (D_prevxW_windowxH_window)x1   (D_prevxW_windowxH_window)xD_curr  D_currx(1x1)
+         */
+        size_t z_Yprev;
+        size_t x_Yprev;
+        size_t y_Yprev;
+        double temp_grad;
+        dim3_t rowInx;
+        for(size_t zprev=0;zprev<D_prev;++zprev){
+        for(size_t xwin=0;xwin<W_window;++xwin){
+        for(size_t ywin=0;ywin<H_window;++ywin){
+            temp_grad = 0;
+            rowInx = {zprev, xwin, ywin};
+            for(size_t zcurr=0;zcurr<D_curr;++zcurr){
+                temp_grad += W.transpose(rowInx, zcurr) * dLdYcurr[(*YcurrgradInx)(zcurr, xcurr, ycurr)]
+            }
+            z_Yprev = zprev;
+            x_Yprev = xcurr + xwin;
+            y_Yprev = ycurr + ywin;
+
+            outputGrads.dLdYprev[outputGrads.YprevgradInx(z_Yprev, x_Yprev, y_Yprev)] += temp_grad;
+        }
+        }
+        }
+    }
     }
 }
