@@ -282,10 +282,12 @@ struct ConvGradients{
     double * dLdW = NULL;
     double * dLdB = NULL;
     size_t YprevgradInx (size_t z_prev, size_t x, size_t y){
-        return W_prev*(D_prev*z_prev+x)+y;
+        return (W_prev*H_prev*z_prev) + (H_prev*x) + y;
+        /*return W_prev*(D_prev*z_prev+x)+y;*/
     }
     size_t WgradInx (size_t z_prev, size_t z_curr, size_t x, size_t y){
-        return W_window*(D_curr*(D_prev*z_prev+z_curr)+x)+y;
+        return (D_curr*W_window*H_window*z_prev) + (W_window*H_window*z_curr) + (H_window*x) + y;
+        /*return W_window*(D_curr*(D_prev*z_prev+z_curr)+x)+y;*/
     }
     size_t BgradInx (size_t z_curr){
         return z_curr;
@@ -447,8 +449,13 @@ void computeAffineConvGradients(/*double * dLdYcurr,
             z_Yprev = zprev;
             x_Yprev = xcurr + xwin;
             y_Yprev = ycurr + ywin;
-
+            /*
+            std::cout<<"Y_prev inx "<<z_Yprev<<" "<<x_Yprev<<" "<<y_Yprev<<" "<<outputGrads.YprevgradInx(z_Yprev, x_Yprev, y_Yprev)<<std::endl;
+            */
+            
             outputGrads.dLdYprev[outputGrads.YprevgradInx(z_Yprev, x_Yprev, y_Yprev)] += temp_grad;
+
+            
             z_Yprev=0;
             x_Yprev=0;
             y_Yprev=0;
@@ -457,7 +464,7 @@ void computeAffineConvGradients(/*double * dLdYcurr,
         }
     }
     }
-
+    
     /* compute dL/dW from dLdYcurr */
     for(size_t xcurr=0;xcurr<W_curr;++xcurr){
     for(size_t ycurr=0;ycurr<H_curr;++ycurr){

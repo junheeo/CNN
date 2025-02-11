@@ -379,8 +379,12 @@ void testConvGradient(){
     gradl_1.printdLdW();
     std::cout<<"dLdBl_1 = "<<std::endl;
     gradl_1.printdLdB();
+    std::cout<<"answer: 1.0, 2.6, 3.2"<<std::endl;
     std::cout<<"dLdYl_0 = "<<std::endl;
     gradl_1.printdLdYprev();
+
+    std::cout<<"dLdYl_0[1,0,0] = ";
+    std::cout<<gradl_1.dLdYprev[gradl_1.YprevgradInx(1,0,0)];
 }
 
 
