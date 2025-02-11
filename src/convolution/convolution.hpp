@@ -277,7 +277,7 @@ void affineconv(Wmatrix<D_prev,D_curr,W_window,H_window> W,
 }
 
 template<size_t D_prev, size_t D_curr, size_t W_window, size_t H_window, size_t W_prev, size_t H_prev, size_t W_curr, size_t H_curr>
-struct Gradients{
+struct ConvGradients{
     double * dLdYprev = NULL;
     double * dLdW = NULL;
     double * dLdB = NULL;
@@ -291,7 +291,7 @@ struct Gradients{
         return dLdB[z_curr];
     }
     /* destructor */
-    ~Gradients(){
+    ~ConvGradients(){
         if(dLdYprev!=NULL){
             delete[] dLdYprev;
         }
@@ -303,7 +303,7 @@ struct Gradients{
         }
     }
 };
-
+/*
 template<size_t D_prev2, size_t D_curr2, size_t W_window2, size_t H_window2, size_t W_prev2, size_t H_prev2, size_t W_curr2, size_t H_curr2, 
         size_t D_prev, size_t D_curr, size_t W_window, size_t H_window, size_t W_prev, size_t H_prev, size_t W_curr, size_t H_curr>
 void computeAffineConvGradients(Gradients<D_prev2,D_curr2,W_window2,H_window2,W_prev2,H_prev2,W_curr2,H_curr2> & inputGrads,  
@@ -320,6 +320,50 @@ void computeAffineConvGradients(Gradients<D_prev2,D_curr2,W_window2,H_window2,W_
     size_t (*YcurrgradInx) (size_t z, size_t x, size_t y) = inputGrads.YprevGradInx;
 
 
+    for(size_t xcurr=0;xcurr<W_curr;++xcurr){
+    for(size_t ycurr=0;ycurr<H_curr;++ycurr){
+        Xprev.setStart(0, xcurr, ycurr);
+
+        size_t z_Yprev;
+        size_t x_Yprev;
+        size_t y_Yprev;
+        double temp_grad;
+        dim3_t rowInx;
+        for(size_t zprev=0;zprev<D_prev;++zprev){
+        for(size_t xwin=0;xwin<W_window;++xwin){
+        for(size_t ywin=0;ywin<H_window;++ywin){
+            temp_grad = 0;
+            rowInx = {zprev, xwin, ywin};
+            for(size_t zcurr=0;zcurr<D_curr;++zcurr){
+                temp_grad += W.transpose(rowInx, zcurr) * dLdYcurr[(*YcurrgradInx)(zcurr, xcurr, ycurr)]
+            }
+            z_Yprev = zprev;
+            x_Yprev = xcurr + xwin;
+            y_Yprev = ycurr + ywin;
+
+            outputGrads.dLdYprev[outputGrads.YprevgradInx(z_Yprev, x_Yprev, y_Yprev)] += temp_grad;
+        }
+        }
+        }
+    }
+    }
+}
+*/
+template<size_t D_prev, size_t D_curr, size_t W_window, size_t H_window, size_t W_prev, size_t H_prev, size_t W_curr, size_t H_curr>
+void computeAffineConvGradients(double * dLdYcurr, 
+            size_t (*YcurrgradInx) (size_t z, size_t x, size_t y), 
+            ConvGradients<D_prev,D_curr,W_window,H_window,W_prev,H_prev,W_curr,H_curr> & outputGrads, 
+            Wmatrix<D_prev,D_curr,W_window,H_window> W,
+            Bmatrix<D_curr> B,
+            Xmatrix<D_prev,W_prev,H_prev> Xprev){
+
+    /* dLdYcurr is the gradient of Y of current layer */
+    outputGrads.dLdYprev = new double [D_prev * W_prev * H_prev];
+    outputGrads.dLdW = new double [D_prev * D_curr * W_window * H_window];
+    outputGrads.dLdB = new double [D_curr];
+    
+
+    /* compute dLdYprev from dLdYcurr */
     for(size_t xcurr=0;xcurr<W_curr;++xcurr){
     for(size_t ycurr=0;ycurr<H_curr;++ycurr){
         Xprev.setStart(0, xcurr, ycurr);
@@ -344,13 +388,39 @@ void computeAffineConvGradients(Gradients<D_prev2,D_curr2,W_window2,H_window2,W_
             temp_grad = 0;
             rowInx = {zprev, xwin, ywin};
             for(size_t zcurr=0;zcurr<D_curr;++zcurr){
-                temp_grad += W.transpose(rowInx, zcurr) * dLdYcurr[(*YcurrgradInx)(zcurr, xcurr, ycurr)]
+                temp_grad += W.transpose(rowInx, zcurr) * dLdYcurr[(*YcurrgradInx)(zcurr, xcurr, ycurr)];
             }
             z_Yprev = zprev;
             x_Yprev = xcurr + xwin;
             y_Yprev = ycurr + ywin;
 
             outputGrads.dLdYprev[outputGrads.YprevgradInx(z_Yprev, x_Yprev, y_Yprev)] += temp_grad;
+        }
+        }
+        }
+    }
+    }
+
+    /* compute dL/dW from dLdYcurr */
+    for(size_t xcurr=0;xcurr<W_curr;++xcurr){
+    for(size_t ycurr=0;ycurr<H_curr;++ycurr){
+        Xprev.setStart(0,xcurr,ycurr);
+        /* (1x1) is fixed value (xcurr,ycurr)
+         *
+         *     Y_curr     =               W                               Xprev               +     B
+         * D_currx(1x1)    D_curr*(D_prevxW_windowxH_window)  (D_prevxW_windowxH_window)x(1x1)   D_currx(1x1)
+         *
+         *    dL/dW             =                 dL/dYcurr           Xprev.transpose
+         * D_currx(D_prevxW_windowxH_window)    D_currx(1x1)  (1x1)x(D_prevxW_windowxH_window)
+         */
+        dim3_t XprevInx;
+        for(size_t zcurr=0;zcurr<D_curr;++zcurr){
+        for(size_t zprev=0;zprev<D_prev;++zprev){
+        for(size_t xwin=0;xwin<W_window;++xwin){
+        for(size_t ywin=0;ywin<H_window;++ywin){
+            XprevInx = {zprev,xwin,ywin};
+            outputGrads.dLdW[outputGrads.WgradInx(zcurr,zprev,xwin,ywin)] += dLdYcurr[YcurrgradInx(zcurr,xcurr,ycurr)] * Xprev(XprevInx);
+        }
         }
         }
         }
