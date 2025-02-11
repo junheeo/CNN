@@ -282,13 +282,13 @@ struct ConvGradients{
     double * dLdW = NULL;
     double * dLdB = NULL;
     size_t YprevgradInx (size_t z_prev, size_t x, size_t y){
-        return dLdYprev[W_prev*(D_prev*z_prev+x)+y];
+        return W_prev*(D_prev*z_prev+x)+y;
     }
     size_t WgradInx (size_t z_prev, size_t z_curr, size_t x, size_t y){
-        return dLdW[W_window*(D_curr*(D_prev*z_prev+z_curr)+x)+y];
+        return W_window*(D_curr*(D_prev*z_prev+z_curr)+x)+y;
     }
     size_t BgradInx (size_t z_curr){
-        return dLdB[z_curr];
+        return z_curr;
     }
     /* destructor */
     ~ConvGradients(){
@@ -302,7 +302,60 @@ struct ConvGradients{
             delete[] dLdB;
         }
     }
+
+    void printdLdYprev(){
+        for(size_t z=0;z<D_prev;++z){
+            std::cout<<"depth "<<z<<std::endl;
+        for(size_t x=0;x<W_prev;++x){
+            std::cout<<"    ";
+        for(size_t y=0;y<H_prev;++y){
+            std::cout<<dLdYprev[YprevgradInx(z,x,y)]<<" ";
+        }
+            std::cout<<std::endl;
+        }
+            std::cout<<std::endl;
+        }
+    }
+    void printdLdW(){
+        for(size_t z_prev=0;z_prev<D_prev;++z_prev){
+            std::cout<<"***"<<std::endl;
+        for(size_t z_curr=0;z_curr<D_curr;++z_curr){
+            std::cout<<"    ";
+        for(size_t x=0;x<W_prev;++x){
+        for(size_t y=0;y<H_prev;++y){
+            std::cout<<dLdW[WgradInx(z_prev,z_curr,x,y)]<<" ";
+        }
+            std::cout<<std::endl<<"    ";
+        }
+            std::cout<<std::endl;
+        }
+            std::cout<<std::endl;
+        }
+    }
+    void printdLdB(){
+        std::cout<<"    ";
+        for(size_t z_curr=0;z_curr<D_curr;++z_curr){
+            std::cout<<dLdB[BgradInx(z_curr)]<<" ";
+        }
+        std::cout<<std::endl;
+    }
+    void printdLdWmatrixform(){
+        for(size_t z_curr=0;z_curr<D_curr;++z_curr){
+            std::cout<<"row "<<z_curr<<std::endl;
+        for(size_t z_prev=0;z_prev<D_prev;++z_prev){
+            std::cout<<"    ";
+        for(size_t x=0;x<W_prev;++x){
+        for(size_t y=0;y<H_prev;++y){
+            std::cout<<dLdW[WgradInx(z_prev,z_curr,x,y)]<<" ";
+        }
+        }
+        }
+            std::cout<<std::endl;
+        }
+    }
 };
+
+
 /*
 template<size_t D_prev2, size_t D_curr2, size_t W_window2, size_t H_window2, size_t W_prev2, size_t H_prev2, size_t W_curr2, size_t H_curr2, 
         size_t D_prev, size_t D_curr, size_t W_window, size_t H_window, size_t W_prev, size_t H_prev, size_t W_curr, size_t H_curr>
@@ -348,10 +401,11 @@ void computeAffineConvGradients(Gradients<D_prev2,D_curr2,W_window2,H_window2,W_
     }
     }
 }
-*/
-template<size_t D_prev, size_t D_curr, size_t W_window, size_t H_window, size_t W_prev, size_t H_prev, size_t W_curr, size_t H_curr>
-void computeAffineConvGradients(double * dLdYcurr, 
-            size_t (*YcurrgradInx) (size_t z, size_t x, size_t y), 
+*/template<size_t D_prev2, size_t D_curr2, size_t W_window2, size_t H_window2, size_t W_prev2, size_t H_prev2, size_t W_curr2, size_t H_curr2, 
+        size_t D_prev, size_t D_curr, size_t W_window, size_t H_window, size_t W_prev, size_t H_prev, size_t W_curr, size_t H_curr>
+void computeAffineConvGradients(/*double * dLdYcurr, 
+            size_t (*YcurrgradInx) (size_t z, size_t x, size_t y), */
+            ConvGradients<D_prev2,D_curr2,W_window2,H_window2,W_prev2,H_prev2,W_curr2,H_curr2> & inputGrads, 
             ConvGradients<D_prev,D_curr,W_window,H_window,W_prev,H_prev,W_curr,H_curr> & outputGrads, 
             Wmatrix<D_prev,D_curr,W_window,H_window> W,
             Bmatrix<D_curr> B,
@@ -388,13 +442,16 @@ void computeAffineConvGradients(double * dLdYcurr,
             temp_grad = 0;
             rowInx = {zprev, xwin, ywin};
             for(size_t zcurr=0;zcurr<D_curr;++zcurr){
-                temp_grad += W.transpose(rowInx, zcurr) * dLdYcurr[(*YcurrgradInx)(zcurr, xcurr, ycurr)];
+                temp_grad += W.transpose(rowInx, zcurr) * inputGrads.dLdYprev[inputGrads.YprevgradInx(zcurr, xcurr, ycurr)];
             }
             z_Yprev = zprev;
             x_Yprev = xcurr + xwin;
             y_Yprev = ycurr + ywin;
 
             outputGrads.dLdYprev[outputGrads.YprevgradInx(z_Yprev, x_Yprev, y_Yprev)] += temp_grad;
+            z_Yprev=0;
+            x_Yprev=0;
+            y_Yprev=0;
         }
         }
         }
@@ -419,11 +476,31 @@ void computeAffineConvGradients(double * dLdYcurr,
         for(size_t xwin=0;xwin<W_window;++xwin){
         for(size_t ywin=0;ywin<H_window;++ywin){
             XprevInx = {zprev,xwin,ywin};
-            outputGrads.dLdW[outputGrads.WgradInx(zcurr,zprev,xwin,ywin)] += dLdYcurr[YcurrgradInx(zcurr,xcurr,ycurr)] * Xprev(XprevInx);
+            outputGrads.dLdW[outputGrads.WgradInx(zcurr,zprev,xwin,ywin)] += inputGrads.dLdYprev[inputGrads.YprevgradInx(zcurr,xcurr,ycurr)] * Xprev(XprevInx);
         }
         }
         }
         }
     }
     }
+
+
+    /* compute dLdB from dLdYcurr */
+    for(size_t xcurr=0;xcurr<W_curr;++xcurr){
+    for(size_t ycurr=0;ycurr<H_curr;++ycurr){
+        /* (1x1) is fixed value (xcurr,ycurr)
+         *
+         *     Y_curr     =               W                               Xprev               +     B
+         * D_currx(1x1)    D_curr*(D_prevxW_windowxH_window)  (D_prevxW_windowxH_window)x(1x1)   D_currx(1x1)
+         *
+         *     dLdB     =    dLdY_curr
+         * D_currx(1x1)     D_currx(1x1)
+         */
+        for(size_t zcurr=0;zcurr<D_curr;++zcurr){
+            outputGrads.dLdB[outputGrads.BgradInx(zcurr)] += inputGrads.dLdYprev[inputGrads.YprevgradInx(zcurr,xcurr,ycurr)];
+
+        }
+    }
+    }
+
 }

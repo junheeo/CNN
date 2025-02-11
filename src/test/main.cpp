@@ -275,9 +275,119 @@ void testWmatrixMultiply(){
 
 }
 
+void testConvGradient(){
+    double Yarrl_0[2][3][3] = 
+    {
+        {
+            {10, 11, 12},
+            {13, 14, 15},
+            {16, 17, 18}
+        },
+        {
+            {19, 20, 21},
+            {22, 23, 24},
+            {24, 26, 27}
+        }
+    };
+    double Warrl_1[2][3][2][2] = 
+    {
+        {
+            {
+                {100, 101},
+                {102, 103}
+            },
+            {
+                {200, 201},
+                {202, 203}
+            },
+            {
+                {300, 301},
+                {302, 303}
+            }
+        },
+        {
+            {
+                {104, 105},
+                {106, 107}
+            },
+            {
+                {204, 205},
+                {206, 207}
+            },
+            {
+                {304, 305},
+                {306, 307}
+            }
+        }
+    };
+    double Barrl_1[3] = {1,2,3};
+    /* dim of Yl_1 is 
+     * D_curr = 3
+     * W_curr = W_prev - W_window + 1 = 3-2+1 = 2
+     * H_curr = H_prev - H_window + 1 = 3-2+1 = 2
+     * */
+    double Yarrl_1[3][2][2];
+
+    double dLdYl_1[3][2][2]={
+        {
+            {0.1, 0.2},
+            {0.3, 0.4},
+        },
+        {
+            {0.5, 0.6},
+            {0.7, 0.8}
+        },
+        {
+            {0.9, 1.0},
+            {1.1, 1.2}
+        }
+    };
+    
+    Ymatrix<2,3,3> Yl_0 (&Yarrl_0);
+    Xmatrix<2,3,3> Xl_0 (Yl_0, 2,2,2);
+    Wmatrix<2,3,2,2> Wl_1 (&Warrl_1);
+    Bmatrix<3> Bl_1 (&Barrl_1);
+    Ymatrix<3,2,2> Yl_1 (&Yarrl_1);
+
+    ConvGradients<3,0,0,0,2,2,0,0> gradl_2;
+    gradl_2.dLdYprev = new double [3*2*2];
+    /*copying gradient values into gradl_2.dLdYprev*/
+    for(size_t z=0;z<3;++z){
+    for(size_t x=0;x<2;++x){
+    for(size_t y=0;y<2;++y){
+        gradl_2.dLdYprev[gradl_2.YprevgradInx(z,x,y)] = dLdYl_1[z][x][y];
+    }
+    }
+    }
+    /*copying gradient values: done.*/
+
+    /*<D_prev,D_curr,W_window,H_window,W_prev,H_prev,W_curr,H_curr> */
+    ConvGradients<2,3,2,2,3,3,2,2> gradl_1;
+    computeAffineConvGradients<3,0,0,0,2,2,0,0,2,3,2,2,3,3,2,2>(
+            gradl_2,
+            gradl_1,
+            Wl_1,
+            Bl_1,
+            Xl_0
+            );
+
+
+    std::cout<<"dLdYl_1 = "<<std::endl;
+    gradl_2.printdLdYprev();
+
+    std::cout<<"dLdWl_1 = "<<std::endl;
+    gradl_1.printdLdW();
+    std::cout<<"dLdBl_1 = "<<std::endl;
+    gradl_1.printdLdB();
+    std::cout<<"dLdYl_0 = "<<std::endl;
+    gradl_1.printdLdYprev();
+}
+
+
 int main(){
     /*testYandXmatrix();*/
     /*testWmatrix();*/
-    testWmatrixMultiply();
+    /*testWmatrixMultiply();*/
+    testConvGradient();
     return 0;
 }
