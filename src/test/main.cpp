@@ -272,7 +272,9 @@ void testWmatrixMultiply(){
     affineconv<2,4,2,3,3,4,2,2>(Wl_1, Bl_1, Xl_0, Yl_1);
     std::cout<<"Yl_1 = "<<std::endl;
     Yl_1.printMatrixForm();
-
+    std::cout<<"Yl_1 = relu(Yl_1) = ";
+    scalarrelu<4,2,2>(Yl_1);
+    Yl_1.printMatrixForm();
 }
 
 void testConvGradient(){
@@ -383,15 +385,218 @@ void testConvGradient(){
     std::cout<<"dLdYl_0 = "<<std::endl;
     gradl_1.printdLdYprev();
 
-    std::cout<<"dLdYl_0[1,0,0] = ";
-    std::cout<<gradl_1.dLdYprev[gradl_1.YprevgradInx(1,0,0)];
 }
 
+void testnonlinearconvGradient(){
+    double Yarrl_0[2][3][3] = 
+    {
+        {
+            {10, 11, 12},
+            {13, 14, 15},
+            {16, 17, 18}
+        },
+        {
+            {19, 20, 21},
+            {22, 23, 24},
+            {25, 26, 27}
+        }
+    };
+    double Warrl_1[2][3][2][2] = 
+    {
+        {
+            {
+                {100, 101},
+                {102, 103}
+            },
+            {
+                {200, 201},
+                {202, 203}
+            },
+            {
+                {300, 301},
+                {302, 303}
+            }
+        },
+        {
+            {
+                {104, 105},
+                {106, 107}
+            },
+            {
+                {204, 205},
+                {206, 207}
+            },
+            {
+                {304, 305},
+                {306, 307}
+            }
+        }
+    };
+    double Barrl_1[3] = {1,2,3};
+    /* dim of Yl_1 is 
+     * D_curr = 3
+     * W_curr = W_prev - W_window + 1 = 3-2+1 = 2
+     * H_curr = H_prev - H_window + 1 = 3-2+1 = 2
+     * */
+    double Yarrl_1[3][2][2]={0};
+    double Yarrl_1postpad[3][4][4]={0};
+
+    double dLdYl_1[3][4][4]={
+        {
+            {0.11, 0.12, 0.13, 0.14},
+            {0.21, 0.1 , 0.2 , 0.24},
+            {0.31, 0.3 , 0.4 , 0.34},
+            {0.41, 0.42, 0.43, 0.44}
+        },
+        {
+            {0.51, 0.52, 0.53, 0.54},
+            {0.61, 0.5 , 0.6 , 0.64},
+            {0.71, 0.7 , 0.8 , 0.74},
+            {0.81, 0.82, 0.83, 0.84}
+        },
+        {
+            {0.91, 0.92, 0.93, 0.94},
+            {1.01, 0.9 , 1.0 , 1.04},
+            {1.11, 1.1 , 1.2 , 1.14},
+            {1.21, 1.22, 1.23, 2.14}
+        }
+    };
+    
+    Ymatrix<2,3,3> Yl_0 (&Yarrl_0);
+
+    Xmatrix<2,3,3> Xl_0 (Yl_0, 2,2,2);
+    Wmatrix<2,3,2,2> Wl_1 (&Warrl_1);
+    Bmatrix<3> Bl_1 (&Barrl_1);
+    Ymatrix<3,2,2> Yl_1 (&Yarrl_1);
+    Ymatrix<3,4,4> Yl_1_postpad (&Yarrl_1postpad);
+
+    /*Yl_1 = relu(convolution(Wl_1,Bl_1,Xl_0))*/
+    affineconv<2,3,2,2,3,3,2,2>(Wl_1,Bl_1,Xl_0,Yl_1);
+    std::cout<<"Yl_1 = Wl_1 Xl_0 + Bl_0 = "<<std::endl;
+    Yl_1.printMatrixForm();
+    scalarrelu<3,2,2>(Yl_1);
+    std::cout<<"Yl_1 = relu(Yl_1) = "<<std::endl;
+    Yl_1.printMatrixForm();
+    zeropadding<3,2,2,3,4,4>(Yl_1, Yl_1_postpad);
+    std::cout<<"Yl_1_postpad = "<<std::endl;
+    Yl_1_postpad.printMatrixForm();
+
+
+    ConvGradients<3,0,0,0,4,4,0,0> gradl_2;
+    gradl_2.dLdYprev = new double [3*2*2];
+    /*copying gradient values into gradl_2.dLdYprev*/
+    for(size_t z=0;z<3;++z){
+    for(size_t x=0;x<4;++x){
+    for(size_t y=0;y<4;++y){
+        gradl_2.dLdYprev[gradl_2.YprevgradInx(z,x,y)] = dLdYl_1[z][x][y];
+    }
+    }
+    }
+    /*copying gradient values: done.*/
+
+    ConvGradients<3,0,0,0,2,2,0,0> gradl_2_prepad;
+
+    computeUndoPadGradients<3,0,0,0,4,4,0,0, 3,0,0,0,2,2,0,0>(gradl_2, gradl_2_prepad);
+
+    computePrevlayerScalarreluGradients<3,0,0,0,2,2,0,0>(gradl_2_prepad, Yl_1);
+    /*<D_prev,D_curr,W_window,H_window,W_prev,H_prev,W_curr,H_curr> */
+    ConvGradients<2,3,2,2,3,3,2,2> gradl_1;
+    computeAffineConvGradients<3,0,0,0,2,2,0,0,2,3,2,2,3,3,2,2>(
+            gradl_2_prepad,
+            gradl_1,
+            Wl_1,
+            Bl_1,
+            Xl_0
+            );
+
+
+    std::cout<<"dLdYl_1 (after padding) = "<<std::endl;
+    gradl_2.printdLdYprev();
+
+    std::cout<<"dLdYl_1prepadding = "<<std::endl;
+    gradl_2_prepad.printdLdYprev();
+
+
+    std::cout<<"dLdWl_1 = "<<std::endl;
+    gradl_1.printdLdW();
+    std::cout<<"dLdBl_1 = "<<std::endl;
+    gradl_1.printdLdB();
+    std::cout<<"answer: 1.0, 2.6, 3.2"<<std::endl;
+    std::cout<<"dLdYl_0 = "<<std::endl;
+    gradl_1.printdLdYprev();
+
+}
+
+void testmaxpool(){
+    double Yarrl_0[2][4][4] = 
+    {
+        {
+            {10, 11, 12, 13},
+            {14, 15, 16, 17},
+            {18, 19, 20, 21},
+            {22, 23, 24, 25}
+        },
+        {
+            {26, 27, 28, 29},
+            {30, 31, 32, 33},
+            {34, 35, 36, 37},
+            {38, 39, 40, 41}
+        }
+    };
+    double Yarrl_0_postmaxpool[2][2][2] = {0};
+
+    Ymatrix<2,4,4> Yl_0 (&Yarrl_0);
+    Ymatrix<2,2,2> Yl_0_postmaxpool (&Yarrl_0_postmaxpool);
+
+    maxpool<2,4,4,2,2,2>(Yl_0, Yl_0_postmaxpool);
+
+    std::cout<<"Yl_0 pre maxpool = "<<std::endl;
+    Yl_0.printMatrixForm();
+    std::cout<<"Yl_0_postmaxpool = "<<std::endl;
+    Yl_0_postmaxpool.printMatrixForm();
+
+
+
+
+    double dLdYl_0[2][2][2]={
+        {
+            {0.1, 0.2},
+            {0.3, 0.4},
+        },
+        {
+            {0.5, 0.6},
+            {0.7, 0.8}
+        }
+    };
+    ConvGradients<2,0,0,0,2,2,0,0> gradl_1;
+    gradl_1.dLdYprev = new double [3*2*2];
+    /* copying grad values into gradl_1.dLdYprev */
+    for(size_t z=0;z<2;++z){
+    for(size_t x=0;x<2;++x){
+    for(size_t y=0;y<2;++y){
+        gradl_1.dLdYprev[gradl_1.YprevgradInx(z,x,y)] = dLdYl_0[z][x][y];
+    }
+    }
+    }
+    /* copying grad values done */
+    ConvGradients<2,0,0,0,4,4,0,0> gradl_1_premaxpool;
+
+    computeUndoMaxpoolGradients<2,0,0,0,2,2,0,0,
+        2,0,0,0,4,4,0,0>(gradl_1, gradl_1_premaxpool, 
+                         Yl_0);
+
+    std::cout<<"dLdYl_0 after maxpool = "<<std::endl;
+    gradl_1.printdLdYprev();
+    std::cout<<"dLdYl_0_premaxpool = "<<std::endl;
+    gradl_1_premaxpool.printdLdYprev();
+}
 
 int main(){
     /*testYandXmatrix();*/
     /*testWmatrix();*/
     /*testWmatrixMultiply();*/
-    testConvGradient();
+    /*testConvGradient();*/
+    /*testnonlinearconvGradient();*/
+    testmaxpool();
     return 0;
 }

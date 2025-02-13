@@ -276,6 +276,81 @@ void affineconv(Wmatrix<D_prev,D_curr,W_window,H_window> W,
     }
 }
 
+template<size_t D_curr, size_t W_curr, size_t H_curr>
+void scalarrelu(Ymatrix<D_curr,W_curr,H_curr> & Y){
+    dim3_t Y_inx;
+    for(size_t z=0;z<D_curr;++z){
+    for(size_t x=0;x<W_curr;++x){
+    for(size_t y=0;y<H_curr;++y){
+        Y_inx={z,x,y};
+        if(Y(Y_inx) < 0){
+            Y.setVal(Y_inx, 0);
+        }
+    }
+    }
+    }
+}
+
+template<size_t D_1, size_t W_1, size_t H_1, size_t D_2, size_t W_2, size_t H_2>
+void zeropadding(Ymatrix<D_1,W_1,H_1> Y_prepadding, Ymatrix<D_2,W_2,H_2> Y_postpadding){
+    if(D_2!=D_1){
+        std::cerr<<"zeropadding: depth of padded layer must be equal "<<D_1<<" to "<<D_2<<std::endl;
+    }
+    if(W_2<=W_1 || H_2<=H_1){
+        std::cerr<<"zeropadding: padding required wider postpadding matrix: attempt to pad "<<W_1<<" "<<H_1<<" to "<<W_2<<" "<<H_2<<std::endl;
+    }
+
+    size_t padWidth = (W_2 - W_1)/2;
+    size_t padHeight = (H_2 - H_1)/2;
+    dim3_t prepadInx;
+    dim3_t postpadInx;
+    for(size_t zprepad=0;zprepad<D_1;++zprepad){
+    for(size_t xprepad=0;xprepad<W_1;++xprepad){
+    for(size_t yprepad=0;yprepad<H_1;++yprepad){
+        prepadInx = {zprepad, xprepad, yprepad};
+        postpadInx = {zprepad, padWidth+xprepad, padHeight+yprepad};
+        Y_postpadding.setVal(postpadInx, Y_prepadding(prepadInx));
+    }
+    }
+    }
+}
+
+
+template<size_t D_1, size_t W_1, size_t H_1, size_t D_2, size_t W_2, size_t H_2>
+void maxpool(Ymatrix<D_1,W_1,H_1> Y_premaxpool, Ymatrix<D_2,W_2,H_2> Y_postmaxpool){
+    if(W_1 % 2 == 1){
+        std::cerr<<"maxpool: widths should be even "<<W_1<<std::endl;
+    }
+    if(H_1 % 2 == 1){
+        std::cerr<<"maxpool: heights should be even"<<H_1<<std::endl;
+    }
+    if(W_1 / 2 != W_2 || H_1 / 2 != H_2){
+        std::cerr<<"maxpool: maxpool should result half of width & height "<<W_1<<" "<<W_2<<" , "<<H_1<<" "<<H_2<<std::endl;
+    }
+
+
+    for(size_t z_prepool=0;z_prepool<D_1;++z_prepool){
+    for(size_t x_prepool=0;x_prepool<W_1;x_prepool=x_prepool+2){
+    for(size_t y_prepool=0;y_prepool<H_1;y_prepool=y_prepool+2){
+        dim3_t YprepoolInx = {z_prepool, x_prepool, y_prepool};
+        double maxval = Y_premaxpool(YprepoolInx);
+        double tmp;
+        for(size_t i=0;i<2;++i){
+        for(size_t j=0;j<2;++j){
+            YprepoolInx = {z_prepool, i+x_prepool, j+y_prepool};
+            tmp = Y_premaxpool(YprepoolInx);
+            if(tmp > maxval){
+                maxval = tmp;
+            }
+        }
+        }
+        dim3_t YpostpoolInx = {z_prepool, x_prepool / 2, y_prepool / 2};
+        Y_postmaxpool.setVal(YpostpoolInx, maxval);
+    }
+    }
+    }
+}
+
 template<size_t D_prev, size_t D_curr, size_t W_window, size_t H_window, size_t W_prev, size_t H_prev, size_t W_curr, size_t H_curr>
 struct ConvGradients{
     double * dLdYprev = NULL;
@@ -469,4 +544,99 @@ void computeAffineConvGradients(
     }
     }
 
+}
+
+template<size_t D_prev2, size_t D_curr2, size_t W_window2, size_t H_window2, size_t W_prev2, size_t H_prev2, size_t W_curr2, size_t H_curr2>
+void computePrevlayerScalarreluGradients(
+            ConvGradients<D_prev2,D_curr2,W_window2,H_window2,W_prev2,H_prev2,W_curr2,H_curr2> & inputGrads,
+            Ymatrix<D_prev2, W_prev2, H_prev2> Yprev){
+
+    dim3_t YprevInx;
+    for(size_t z=0;z<D_prev2;++z){
+    for(size_t x=0;x<W_prev2;++x){
+    for(size_t y=0;y<H_prev2;++y){
+        YprevInx = {z,x,y};
+        /* relu(z) = | z if z>=0
+         *           | 0 if z<0
+         *
+         * drelu(z)dz = | 1 if z>=0 <==> relu(z) = z
+         *              | 0 if z<0  <==> relu(z) = 0
+         * */
+        if(Yprev(YprevInx)<0){
+            inputGrads.dLdYprev[inputGrads.YprevgradInx(z,x,y)] = 0;
+        }
+    }
+    }
+    }
+}
+
+template<size_t D_prev2, size_t D_curr2, size_t W_window2, size_t H_window2, size_t W_prev2, size_t H_prev2, size_t W_curr2, size_t H_curr2, 
+        size_t D_prev, size_t D_curr, size_t W_window, size_t H_window, size_t W_prev, size_t H_prev, size_t W_curr, size_t H_curr>
+void computeUndoPadGradients(
+            ConvGradients<D_prev2,D_curr2,W_window2,H_window2,W_prev2,H_prev2,W_curr2,H_curr2> & postpaddingGrads,
+            ConvGradients<D_prev,D_curr,W_window,H_window,W_prev,H_prev,W_curr,H_curr> & prepaddingGrads){
+
+    if(D_prev2!=D_prev){
+        std::cerr<<"computeUndoPadGradients: depth of padded layer must be equal "<<D_prev<<" to "<<D_prev2<<std::endl;
+        throw 0;
+    }
+    if(W_prev2<=W_prev || H_prev2<=H_prev){
+        std::cerr<<"computeUndoPadGradients: padding required wider postpadding matrix: attempt to pad "<<W_prev<<" "<<H_prev<<" to "<<W_prev2<<" "<<H_prev2<<std::endl;
+        throw 0;
+    }
+
+    prepaddingGrads.dLdYprev = new double [D_prev * W_prev * H_prev];
+
+    size_t padWidth = (W_prev2 - W_prev)/2;
+    size_t padHeight = (H_prev - H_prev)/2;
+    for(size_t zprepad=0;zprepad<D_prev;++zprepad){
+    for(size_t xprepad=0;xprepad<W_prev;++xprepad){
+    for(size_t yprepad=0;yprepad<H_prev;++yprepad){
+
+        prepaddingGrads.dLdYprev[prepaddingGrads.YprevgradInx(zprepad,xprepad,yprepad)] = postpaddingGrads.dLdYprev[postpaddingGrads.YprevgradInx(zprepad,padWidth+xprepad,padHeight+yprepad)];
+    }
+    }
+    }
+}
+
+template<size_t D_prev2, size_t D_curr2, size_t W_window2, size_t H_window2, size_t W_prev2, size_t H_prev2, size_t W_curr2, size_t H_curr2, 
+        size_t D_prev, size_t D_curr, size_t W_window, size_t H_window, size_t W_prev, size_t H_prev, size_t W_curr, size_t H_curr>
+void computeUndoMaxpoolGradients(
+                ConvGradients<D_prev2,D_curr2,W_window2,H_window2,W_prev2,H_prev2,W_curr2,H_curr2> & postmaxpoolGrads,
+                ConvGradients<D_prev,D_curr,W_window,H_window,W_prev,H_prev,W_curr,H_curr> & premaxpoolGrads,
+                Ymatrix<D_prev,W_prev,H_prev> & Y_prev_premaxpool
+                ){
+    if(D_prev2!=D_prev){
+        std::cerr<<"computeUndoMaxpoolGradients: depth of maxpool layer must be equal "<<D_prev<<" to "<<D_prev2<<std::endl;
+        throw 0;
+    }
+    if(W_prev2*2!=W_prev || H_prev2*2!=H_prev){
+        std::cerr<<"computeUndoMaxpoolGradients: gradient width heights must be twice as large "<<W_prev2<<" to "<<W_prev<<" , "<<H_prev2<<" to "<<H_prev<<std::endl;
+        throw 0;
+    }
+
+    premaxpoolGrads.dLdYprev = new double [D_prev * W_prev * H_prev] (); /* initialize by 0 */
+
+    for(size_t z_prepool=0;z_prepool<D_prev;++z_prepool){
+    for(size_t x_prepool=0;x_prepool<W_prev;x_prepool=x_prepool+2){
+    for(size_t y_prepool=0;y_prepool<H_prev;y_prepool=y_prepool+2){
+        dim3_t tmpInx = {z_prepool, x_prepool, y_prepool};
+        double maxval = Y_prev_premaxpool(tmpInx);
+        dim3_t maxInx = {z_prepool, x_prepool, y_prepool};
+        double tmp;
+        for(size_t i=0;i<2;++i){
+        for(size_t j=0;j<2;++j){
+            tmpInx = {z_prepool, i+x_prepool, j+y_prepool};
+            tmp = Y_prev_premaxpool(tmpInx);
+            if(tmp > maxval){
+                maxval = tmp;
+                maxInx = {tmpInx.d, tmpInx.w, tmpInx.h};
+            }
+        }
+        }
+
+        premaxpoolGrads.dLdYprev[premaxpoolGrads.YprevgradInx(maxInx.d,maxInx.w,maxInx.h)] = postmaxpoolGrads.dLdYprev[postmaxpoolGrads.YprevgradInx(z_prepool,x_prepool/2,y_prepool/2)];
+    }
+    }
+    }
 }
