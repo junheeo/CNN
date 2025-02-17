@@ -352,10 +352,7 @@ void maxpool(Ymatrix<D_1,W_1,H_1> Y_premaxpool, Ymatrix<D_2,W_2,H_2> Y_postmaxpo
 }
 
 template<size_t D, size_t W, size_t H>
-size_t tensorToVectorInx(dim3_t tensorInx){
-    size_t z = tensorInx.d;
-    size_t x = tensorInx.w;
-    size_t y = tensorInx.h;
+size_t 3tensorToVectorInx(size_t z, size_t x, size_t y){
     return (z*W*H) + (x*H) + y;
 }
 
@@ -373,8 +370,7 @@ void tensorToVector(Ymatrix<D,W,H> Y, double (* ptrarr) [D*W*H]){
     for(size_t z=0;z<D;++z){
     for(size_t x=0;x<W;++x){
     for(size_t y=0;y<H;++y){
-        dim3_t tensorInx = {z,x,y};
-        (* ptrarr)[tensorToVectorInx<D,W,H>(tensorInx)] = Y(tensorInx);
+        (* ptrarr)[3tensorToVectorInx<D,W,H>(z,x,y)];
     }
     }
     }

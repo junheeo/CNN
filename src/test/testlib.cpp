@@ -261,7 +261,7 @@ void testWmatrixMultiply(){
      * matMult<D_prev, D_curr, W_window, H_window, 
      *         W_prev, H_prev, W_curr, H_curr> */
     matMult<2,4,2,3,3,4,2,2>(Wl_1, Xl_0, Yl_1);
-    std::cout<<"Yl_1 = "<<std::endl;
+    std::cout<<"matmult result Yl_1 = "<<std::endl;
     Yl_1.printMatrixForm();
 
     /* one bias value for each windows(D_curr windows)*/
@@ -270,7 +270,7 @@ void testWmatrixMultiply(){
     };
     Bmatrix <4> Bl_1 (&Biasarrl_1);
     affineconv<2,4,2,3,3,4,2,2>(Wl_1, Bl_1, Xl_0, Yl_1);
-    std::cout<<"Yl_1 = "<<std::endl;
+    std::cout<<"affineconv result Yl_1 = "<<std::endl;
     Yl_1.printMatrixForm();
     std::cout<<"Yl_1 = relu(Yl_1) = ";
     scalarrelu<4,2,2>(Yl_1);
@@ -625,9 +625,9 @@ int main(){
     /*testYandXmatrix();*/
     /*testWmatrix();*/
     /*testWmatrixMultiply();*/
-    /*testConvGradient();*/
+    testConvGradient();
     /*testnonlinearconvGradient();*/
     /*testmaxpool();*/
-    testtensortoffn();
+    /*testtensortoffn();*/
     return 0;
 }
