@@ -252,49 +252,56 @@ class conv2d{
     tensor3d * dLdYl_curr;
     tensor4d * dLdW;
     tensor3d * dLdB;
+    int batchSize;
 
     class X_prev_t{
-        tensor3d & Y_prev;
-        dim3_t startInx;
+        tensor3d * Y_prev;
+        dim3_t * startInx;
         dim3_t windowdim;
         public:
         dim3_t Y_prevdim;
 
-        X_prev_t(tensor3d & Yprev, int d, int w, int h) : Y_prev(Yprev) {windowdim = {d,w,h}; startInx = {0,0,0};Y_prevdim = Yprev.dim(); 
-                std::cout<<"X_prev contructor Yprev = "<<std::endl; Y_prev.printMatrixForm();} /* constructor */
-        void setStart(dim3_t start_Inx) {startInx = {start_Inx.d, start_Inx.w, start_Inx.h};}
-        double operator() (dim3_t colInx){
+        X_prev_t(tensor3d * Yprev, int d, int w, int h, int batchSize) : Y_prev(Yprev) {        /* constructor */
+                                                windowdim = {d,w,h}; 
+                                                Y_prevdim = Yprev[0].dim(); 
+                                                startInx = new dim3_t [batchSize];
+                                                for(int batchInx=0;batchInx<batchSize;++batchInx){
+                                                    startInx[batchInx] = {0,0,0};
+                                                }
+        } 
+        void setStart(dim3_t start_Inx, int batchInx) {startInx[batchInx] = {start_Inx.d, start_Inx.w, start_Inx.h};}
+        double operator() (dim3_t colInx, int batchInx){
             dim3_t Y_prev_inx;
             if(colInx.d>=windowdim.d || colInx.w>=windowdim.w || colInx.h>=windowdim.h){
                 std::cerr<<"X_prev: operator() index out of range "<<colInx.d<<" "<<colInx.w<<" "<<colInx.h<<std::endl;
                 throw 0;
             }
-            int z = startInx.d + colInx.d;
-            int x = startInx.w + colInx.w;
-            int y = startInx.h + colInx.h;
+            int z = startInx[batchInx].d + colInx.d;
+            int x = startInx[batchInx].w + colInx.w;
+            int y = startInx[batchInx].h + colInx.h;
             Y_prev_inx = {z,x,y};
             
-            return Y_prev(Y_prev_inx);
+            return Y_prev[batchInx](Y_prev_inx);
         }
-        void setVal(dim3_t colInx, double val){
+        void setVal(dim3_t colInx, double val, int batchInx){
             dim3_t Y_prev_inx;
             if(colInx.d>=windowdim.d || colInx.w>=windowdim.w || colInx.h>=windowdim.h){
                 std::cerr<<"X_prev: operator() index out of range "<<colInx.d<<" "<<colInx.w<<" "<<colInx.h<<std::endl;
                 throw 0;
             }
-            int z = startInx.d + colInx.d;
-            int x = startInx.w + colInx.w;
-            int y = startInx.h + colInx.h;
+            int z = startInx[batchInx].d + colInx.d;
+            int x = startInx[batchInx].w + colInx.w;
+            int y = startInx[batchInx].h + colInx.h;
             Y_prev_inx = {z,x,y};
-            Y_prev.setVal(Y_prev_inx, val);
+            Y_prev[batchInx].setVal(Y_prev_inx, val);
         }
-        void printMatrixForm(){
+        void printMatrixForm(int batchInx){
             for(int z=0;z<windowdim.d;++z){
             for(int x=0;x<windowdim.w;++x){
                 std::cout<<"    ";
             for(int y=0;y<windowdim.h;++y){
                 dim3_t inx = {z,x,y};
-                std::cout<<(*this)(inx)<<" ";
+                std::cout<<(*this)(inx, batchInx)<<" ";
             }
                 std::cout<<std::endl;
             }
@@ -309,7 +316,7 @@ class conv2d{
             tensor3d * Yl_prevarr, tensor3d * Yl_currarr, 
             tensor3d * dLdY_prevarr, tensor3d * dLdY_currarr, 
             tensor4d * dLdW_arr, tensor3d * dLdB_arr=nullptr, 
-            int stride_=1, bool include_bias=true){ /*constructor*/
+            int stride_=1, bool include_bias=true, int batch_size=10){ /*constructor*/
         dim3_t Yprevdim = Yl_prevarr[0].dim();
         dim3_t Ycurrdim = Yl_currarr[0].dim();
         if(Ycurrdim.d!=d_curr || Ycurrdim.w!=Yprevdim.w-w_window+1 || Ycurrdim.h!=Yprevdim.h-h_window+1 || d_prev!=Yprevdim.d){
@@ -324,6 +331,7 @@ class conv2d{
         WcolInx = {d_prev, w_window, h_window};
         stride = stride_;
         includeBias = include_bias;
+        batchSize = batch_size;
         Yl_prev = Yl_prevarr;
         Yl_curr = Yl_currarr;
         dLdYl_prev = dLdY_prevarr;
@@ -331,8 +339,6 @@ class conv2d{
         dLdW = dLdW_arr;
         dLdB = dLdB_arr;
         
-        std::cout<<"conv2d constructor: dLdYl_prev[0] = "<<std::endl;
-        dLdYl_prev[0].printMatrixForm();
 
         W.setUniformRandom(d_prev, d_curr, w_window, h_window);
         if(includeBias){
@@ -355,7 +361,7 @@ class conv2d{
 
         Yl_curr[batchInx].setZero();
 
-        X_prev_t Xprev(Yl_prev[batchInx], WcolInx.d, WcolInx.w, WcolInx.h);
+        X_prev_t Xprev(Yl_prev, WcolInx.d, WcolInx.w, WcolInx.h, batchSize);
 
         dim3_t startInx;
         dim3_t Yl_currInx;
@@ -364,12 +370,8 @@ class conv2d{
         for(int ycurr=0;ycurr<Ycurrdim.h;++ycurr){
 
 
-            /*std::cout<<std::endl<<"Xprev startInx = "<<xcurr<<" "<<ycurr<<" includeBias "<<includeBias<<std::endl;*/
             startInx = {0, stride * xcurr, stride * ycurr};
-            Xprev.setStart(startInx);
-
-            /*std::cout<<"Xprev = "<<std::endl;
-            Xprev.printMatrixForm();*/
+            Xprev.setStart(startInx, batchInx);
 
 
         /*    Y_curr     =               W                             X_prev               +     B
@@ -384,17 +386,12 @@ class conv2d{
                 for(int xwin=0;xwin<WcolInx.w;++xwin){
                 for(int ywin=0;ywin<WcolInx.h;++ywin){
                     colInx = {zprev, xwin, ywin};
-                    /*
-                    std::cout<<"Winx = "<<zcurr<<" "<<zprev<<" "<<xwin<<" "<<ywin<<std::endl;
-                    std::cout<<"Xprevinx = "<<zprev<<" "<<xwin<<" "<<ywin<<std::endl;
-                    std::cout<<"tmpVal += "<<W(zcurr, colInx)<<"*"<<Xprev(colInx)<<std::endl;*/
 
-                    tmpVal += W(zcurr, colInx) * Xprev(colInx);
+                    tmpVal += W(zcurr, colInx) * Xprev(colInx, batchInx);
                 }
                 }
                 }
                 if(includeBias){
-                    /*std::cout<<"Binx = "<<zcurr<<" 0 0"<<std::endl;*/
                     dim3_t biasInx = {zcurr,0,0};
                     tmpVal += B(biasInx);
                 }
@@ -408,12 +405,10 @@ class conv2d{
     void computeGrad(int batchInx=0){
         dim3_t Yl_currdim = Yl_curr[batchInx].dim();
         
-        std::cout<<"computeGrad: Yl_curr["<<batchInx<<"] = "<<std::endl;
-        Yl_curr[batchInx].printMatrixForm();
+       
         
-        X_prev_t Xprev(Yl_prev[batchInx], WcolInx.d, WcolInx.w, WcolInx.h);
-        std::cout<<"create X_prev_t dLdXprev "<<WcolInx.d<<" "<<WcolInx.w<<" "<<WcolInx.h<<std::endl;
-        X_prev_t dLdXprev(dLdYl_prev[batchInx], WcolInx.d, WcolInx.w, WcolInx.h);
+        X_prev_t Xprev(Yl_prev, WcolInx.d, WcolInx.w, WcolInx.h, batchSize);
+        X_prev_t dLdXprev(dLdYl_prev, WcolInx.d, WcolInx.w, WcolInx.h, batchSize);
 
         dim3_t startInx;
         for(int xcurr=0;xcurr<Yl_currdim.w;++xcurr){
@@ -430,7 +425,7 @@ class conv2d{
              * (D_prevxW_windowxH_window)x1   (D_prevxW_windowxH_window)xD_curr  D_currx(1x1)
              */
             startInx = {0,stride*xcurr,stride*ycurr};
-            dLdXprev.setStart(startInx);
+            dLdXprev.setStart(startInx, batchInx);
 
             dim3_t dLdYcurrInx;
             dim3_t rowInx;
@@ -443,11 +438,11 @@ class conv2d{
                 double tmpVal=0;
                 for(int zcurr=0;zcurr<WBrowInx;++zcurr){
                     dLdYcurrInx = {zcurr, xcurr, ycurr};
-                                       tmpVal += W.transpose(rowInx, zcurr) * dLdYl_curr[batchInx](dLdYcurrInx);
+                   tmpVal += W.transpose(rowInx, zcurr) * dLdYl_curr[batchInx](dLdYcurrInx);
 
                 }
                 
-                dLdXprev.setVal(rowInx, dLdXprev(rowInx) + tmpVal);
+                dLdXprev.setVal(rowInx, dLdXprev(rowInx, batchInx) + tmpVal, batchInx);
             }
             }
             }
@@ -462,7 +457,7 @@ class conv2d{
              */
             int dLdWrowInx;
             dim3_t dLdWcolInx;
-            Xprev.setStart(startInx);
+            Xprev.setStart(startInx, batchInx);
             for(int zcurr=0;zcurr<WBrowInx;++zcurr){
             for(int zprev=0;zprev<WcolInx.d;++zprev){
             for(int xwin=0;xwin<WcolInx.w;++xwin){
@@ -470,16 +465,13 @@ class conv2d{
                 dLdWrowInx = zcurr;
                 dLdWcolInx = {zprev,xwin,ywin};
                 dim3_t dLdYcurrInx = {dLdWrowInx,xcurr,ycurr};
-                double tmpVal = dLdYl_curr[batchInx](dLdYcurrInx) * Xprev(dLdWcolInx);
-                std::cout<<"("<<zcurr<<" "<<zprev<<" "<<xwin<<" "<<ywin<<")tmpVal = "<<tmpVal<<std::endl;
+                double tmpVal = dLdYl_curr[batchInx](dLdYcurrInx) * Xprev(dLdWcolInx, batchInx);
                 tmpVal += dLdW[batchInx](dLdWrowInx, dLdWcolInx);
                 dLdW[batchInx].setVal(dLdWrowInx,dLdWcolInx, tmpVal);
             }
             }
             }
             }
-            std::cout<<"("<<xcurr<<" "<<ycurr<<") dLdW = "<<std::endl;
-            dLdW[batchInx].printMatrixForm();
 
 
             if(includeBias){
@@ -506,5 +498,200 @@ class conv2d{
         }
         }
 
+    }
+};
+
+class tensorRelu{
+    dim3_t dim;
+    tensor3d * Yl_prev;
+    tensor3d * Yl_curr;
+    tensor3d * dLdYl_prev;
+    tensor3d * dLdYl_curr;
+    public:
+    tensorRelu (int d, int w, int h, tensor3d * Yprev, tensor3d * Ycurr, 
+                tensor3d * dLdYprev, tensor3d * dLdYcurr, int batch_size){
+        dim = {d,w,h};
+        Yl_prev = Yprev;
+        Yl_curr = Ycurr;
+        dLdYl_prev = dLdYprev;
+        dLdYl_curr = dLdYcurr;
+    }
+    void relu(int batchInx=0){
+        dim3_t YInx;
+        for(int z=0;z<dim.d;++z){
+        for(int x=0;x<dim.w;++x){
+        for(int y=0;y<dim.h;++y){
+            YInx = {z,x,y};
+            double prevVal = Yl_prev[batchInx](YInx);
+            if(prevVal >= 0){
+                Yl_curr[batchInx].setVal(YInx, prevVal);
+            }else{
+                Yl_curr[batchInx].setVal(YInx, 0);
+            }
+        }
+        }
+        }
+    }
+    void computeGrad(int batchInx=0){
+        dim3_t YInx;
+        for(int z=0;z<dim.d;++z){
+        for(int x=0;x<dim.w;++x){
+        for(int y=0;y<dim.h;++y){
+            YInx = {z,x,y};
+            if(Yl_prev[batchInx](YInx) >= 0){
+                dLdYl_prev[batchInx].setVal(YInx, dLdYl_curr[batchInx](YInx));
+            } else {
+                dLdYl_prev[batchInx].setVal(YInx, 0);
+            }
+        }
+        }
+        }
+    }
+};
+
+class tensorZeroPad{
+    dim3_t dimprev;
+    dim3_t dimcurr;
+    tensor3d * Yl_prev;
+    tensor3d * Yl_curr;
+    tensor3d * dLdYl_prev;
+    tensor3d * dLdYl_curr;
+    int padWidth;
+    int padHeight;
+    public:
+    tensorZeroPad (tensor3d * Yprev, tensor3d * Ycurr, 
+                   tensor3d * dLdYprev, tensor3d * dLdYcurr, int batch_size) : Yl_prev(Yprev), Yl_curr(Ycurr), dLdYl_prev(dLdYprev), dLdYl_curr(dLdYcurr) {
+        
+        if(Yprev[0].dim().d != Ycurr[0].dim().d){
+            std::cerr<<"tensorZeroPad: Yprev and Ycurr should have same depth: "<<Yprev[0].dim().d<<" "<<Ycurr[0].dim().d<<std::endl;
+            throw 0;
+        }
+        dimprev = Yprev[0].dim();
+        dimcurr = Ycurr[0].dim();
+        padWidth = (dimcurr.w - dimprev.w) / 2;
+        padHeight = (dimcurr.h - dimprev.h) / 2;
+    }
+    void zeropad(int batchInx=0){
+        dim3_t prevInx;
+        dim3_t currInx;
+        for(int zprev=0;zprev<dimprev.d;++zprev){
+        for(int xprev=0;xprev<dimprev.w;++xprev){
+        for(int yprev=0;yprev<dimprev.h;++yprev){
+            int zcurr = zprev;
+            int xcurr = xprev + padWidth;
+            int ycurr = yprev + padHeight;
+            prevInx = {zprev, xprev, yprev};
+            currInx = {zcurr, xcurr, ycurr};
+            Yl_curr[batchInx].setVal(currInx, Yl_prev[batchInx](prevInx));
+        }
+        }
+        }
+    }
+    void computeGrad(int batchInx){
+        dim3_t prevInx;
+        dim3_t currInx;
+        for(int zprev=0;zprev<dimprev.d;++zprev){
+        for(int xprev=0;xprev<dimprev.w;++xprev){
+        for(int yprev=0;yprev<dimprev.h;++yprev){
+            int zcurr = zprev;
+            int xcurr = xprev + padWidth;
+            int ycurr = yprev + padHeight;
+            prevInx = {zprev, xprev, yprev};
+            currInx = {zcurr, xcurr, ycurr};
+            dLdYl_prev[batchInx].setVal(prevInx, dLdYl_curr[batchInx](currInx));
+        }
+        }
+        }
+    }
+};
+
+class tensorMaxPool{
+    dim3_t dimprev;
+    dim3_t dimcurr;
+    tensor3d * Yl_prev;
+    tensor3d * Yl_curr;
+    tensor3d * dLdYl_prev;
+    tensor3d * dLdYl_curr;
+    tensor3d * prevMaxPos;
+    int Wwindow;
+    int Hwindow;
+    int batchSize;
+    public:
+    tensorMaxPool (tensor3d * Yprev, tensor3d * Ycurr, 
+                   tensor3d * dLdYprev, tensor3d * dLdYcurr, int batch_size) : Yl_prev(Yprev), Yl_curr(Ycurr), dLdYl_prev(dLdYprev), dLdYl_curr(dLdYcurr), batchSize(batch_size) {
+        dimprev = Yprev[0].dim();
+        dimcurr = Ycurr[0].dim();
+        if(dimprev.w % dimcurr.w != 0 || dimprev.h % dimcurr.h != 0){
+            std::cerr<<"tensorMaxPool: width height of maxpool input is not divisible by that of output: "<<dimprev.w<<" "<<dimprev.h<<" -> "<<dimcurr.w<<" "<<dimcurr.h<<std::endl;
+            throw 0;
+        }
+        Wwindow = dimprev.w / dimcurr.w;
+        Hwindow = dimprev.h / dimcurr.h;
+        prevMaxPos = newZeroTensor3dArr(dimprev.d, dimprev.w, dimprev.h, batch_size);
+    }
+
+    void maxpool(int batchInx){
+        int maxVal;
+        int zprev;
+        int xprev;
+        int yprev;
+        dim3_t prevInx;
+        dim3_t currInx;
+        for(int zcurr=0;zcurr<dimcurr.d;++zcurr){
+        for(int xcurr=0;xcurr<dimcurr.w;++xcurr){
+        for(int ycurr=0;ycurr<dimcurr.h;++ycurr){
+            zprev = zcurr;
+            xprev = xcurr * Wwindow;
+            yprev = ycurr * Hwindow;
+            prevInx = {zprev, xprev, yprev};
+            maxVal = Yl_prev[batchInx](prevInx);
+            int zmax,xmax,ymax;
+            zmax = zprev;
+            int tmpVal;
+            for(int i=0;i<Wwindow;++i){
+            for(int j=0;j<Hwindow;++j){
+                prevInx = {zprev, xprev+i, yprev+j};
+                tmpVal = Yl_prev[batchInx](prevInx);
+                if(maxVal < tmpVal){
+                    maxVal = tmpVal;
+                    xmax = xprev+i;
+                    ymax = yprev+j;
+                }
+            }
+            }
+            currInx = {zcurr, xcurr, ycurr};
+            Yl_curr[batchInx].setVal(currInx, maxVal);
+            dim3_t maxInx = {zmax,xmax,ymax};
+            prevMaxPos[batchInx].setVal(maxInx,1);
+        }
+        }
+        }
+        /*std::cout<<"prevMaxPos[0] = "<<std::endl;
+        prevMaxPos[0].printMatrixForm();*/
+    }
+    void computeGrad(int batchInx){
+        int zprev;
+        int xprev;
+        int yprev;
+        dim3_t prevInx, currInx;
+        for(int zcurr=0;zcurr<dimcurr.d;++zcurr){
+        for(int xcurr=0;xcurr<dimcurr.w;++xcurr){
+        for(int ycurr=0;ycurr<dimcurr.h;++ycurr){
+            zprev = zcurr;
+            xprev = xcurr * Wwindow;
+            yprev = ycurr * Hwindow;
+            for(int i=0;i<Wwindow;++i){
+            for(int j=0;j<Hwindow;++j){
+                prevInx = {zprev,xprev+i,yprev+j};
+                if(prevMaxPos[batchInx](prevInx) == 1){
+                    currInx = {zcurr,xcurr,ycurr};
+                    dLdYl_prev[batchInx].setVal(prevInx, dLdYl_curr[batchInx](currInx));
+                }
+            }
+            }
+        }
+        }
+        }
+        prevMaxPos[batchInx].setZero(dimprev.d, dimprev.w, dimprev.h);
     }
 };
