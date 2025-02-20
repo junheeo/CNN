@@ -1,6 +1,7 @@
 #include<iostream>
 #include<vector>
 #include<random>
+#include<cmath>
 
 struct dim3_t {
     int d;
@@ -36,6 +37,9 @@ class tensor3d {
     tensor3d(int d, int w, int h){setZero(d, w, h);} /* initialize with 0 */
     tensor3d(int d, int w, int h, std::vector<std::vector<std::vector<double>>> inputVector){
         setVal(d,w,h,inputVector);
+    }
+    ~tensor3d(){                                    /* destructor */
+        if(arr != nullptr){delete arr; arrdim = {0,0,0};}
     }
     
     double operator() (dim3_t colInx){
@@ -137,6 +141,9 @@ class tensor4d {
     }
     tensor4d(int d_prev, int d_curr, int w, int h){
         setZero(d_prev, d_curr, w, h);
+    }
+    ~tensor4d(){                                        /* destructor */
+        if(arr != nullptr){delete arr; rowdim = 0; coldim = {0,0,0};}
     }
 
     double operator() (int rowInx, dim3_t colInx){
@@ -587,7 +594,7 @@ class tensorZeroPad{
         }
         }
     }
-    void computeGrad(int batchInx){
+    void computeGrad(int batchInx=0){
         dim3_t prevInx;
         dim3_t currInx;
         for(int zprev=0;zprev<dimprev.d;++zprev){
@@ -630,7 +637,7 @@ class tensorMaxPool{
         prevMaxPos = newZeroTensor3dArr(dimprev.d, dimprev.w, dimprev.h, batch_size);
     }
 
-    void maxpool(int batchInx){
+    void maxpool(int batchInx=0){
         int maxVal;
         int zprev;
         int xprev;
@@ -669,7 +676,7 @@ class tensorMaxPool{
         /*std::cout<<"prevMaxPos[0] = "<<std::endl;
         prevMaxPos[0].printMatrixForm();*/
     }
-    void computeGrad(int batchInx){
+    void computeGrad(int batchInx=0){
         int zprev;
         int xprev;
         int yprev;
@@ -693,5 +700,91 @@ class tensorMaxPool{
         }
         }
         prevMaxPos[batchInx].setZero(dimprev.d, dimprev.w, dimprev.h);
+    }
+};
+
+class tensorBatchNorm{
+    dim3_t dim;
+    tensor3d * Yl_prev;
+    tensor3d * Yl_curr;
+    tensor3d * dLdYl_prev;
+    tensor3d * dLdYl_curr;
+    int batchSize;
+    vector<vector<double>> mus_per_depth;
+    vector<vector<double>> sigmas_per_depth;
+    double epsilon;
+    tensor3d gamma;
+    tensor3d beta;
+    tensor3d dLdgamma;
+    tensor3d dLdbeta;
+
+    double mu(int z){
+        double tmpVal = 0;
+        dim3_t Yl_prevInx;
+        for(int batchInx=0;batchInx<batchSize;++batchInx){
+        for(int x=0;x<dim.w;++x){
+        for(int y=0;y<dim.h;++y){
+            Yl_prevInx = {z,x,y};
+            tmpVal += Yl_prev[batchInx](Yl_prev);
+        }
+        }
+        }
+        return tmpVal;
+    }
+    double sigma2(int z, double mu){
+        double tmpVal = 0;
+        dim3_t Yl_prevInx;
+        for(int batchInx=0;batchInx<batchSize;++batchInx){
+        for(int x=0;x<dim.w;++x){
+        for(int y=0;y<dim.h;++y){
+            Yl_prevInx = {z,x,y};
+            tmpVal += std::pow(Yl_prev[batchInx](Yl_prev) - mu, 2);
+        }
+        }
+        }
+        return tmpVal / (batchSize * dim.w * dim.h);
+    }
+    public:
+    tensorBatchNorm (tensor * Yprev, tensor * Ycurr, tensor * dLdYprev, tensor * dLdYcurr, int batch_size) : 
+                    Yl_prev(Yprev), Yl_curr(Ycurr), dLdYl_prev(dLdYprev), dLdYl_curr(dLdYcurr), batchSize(batch_size) {
+        if(Yprev[0].dim().d != Ycurr[0].dim().d || Yprev[0].dim().w != Ycurr[0].dim().w || Yprev[0].dim().h != Ycurr[0].dim().h){
+            std::cerr<<"tensorBatchNorm : Yprev and Ycurr dimensions do not match: ";
+            std::cerr<<Yprev[0].dim().d<<" "<<Yprev[0].dim().w<<" "<<Yprev[0].dim().h;
+            std::cerr<<" should equal "<<Ycurr[0].dim().d<<" "<<Ycurr[0].dim().w<<" "<<Ycurr[0].dim().h<<std::endl;
+            throw 0;
+        } 
+        dim = Yprev[0].dim();
+        epsilon = 0.00001;
+        gamma.setUniformRandom(dim.d, 1, 1);
+        beta.setUniformRandom(dim.d, 1, 1);
+        dLdgamma.setZero(dim.d, 1, 1);
+        dLdbeta.setZero(dim.d, 1, 1);
+    }
+    
+    void batchNorm(){
+        for(int z=0;z<dim.d;++z){
+            double mu_B = mu(z);
+            double sigma2_B = sigma2(z,mu_B);
+            dim3_t zInx = {z,0,0};
+            double g = gamma(zInx);
+            double b = beta(zInx);
+
+            /* for m = batchSize
+             * trueBatchSize = batchSize * width * height
+             * m = (batchInx,x,y)
+             * x_(batchInx,x,y) = {x_(batchInx,x,y)^(z=1), ... ,x_(batchInx,x,y)^(z=d)}
+             * x_hat_(batchInx,x,y)^(z) = ( x_(batchInx,x,y)^(z) - mu^(z) ) / sqrt(sigma2^(z) + epsilon)
+             * */
+            dim3_t i;
+            for(int batchInx=0;batchInx<batchSize;++batchInx){
+            for(int x=0;x<dim.w;++x){
+            for(int y=0;y<dim.h;++y){
+                i={z,x,y};
+                double x_m = Yl_curr[batchInx](i);
+                double x_hat_m = (x_m - mu_B) / std::sqrt(sigma2_B + epsilon);
+            }
+            }
+            }
+        }
     }
 };

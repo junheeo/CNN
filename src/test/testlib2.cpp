@@ -398,7 +398,7 @@ void testzeropadding(){
         }
     };
 
-
+    /* 2x3x3 */
     std::vector<std::vector<std::vector<double>>> inputYl_0_batchindex0 {
         {
             {10, 11, 12},
@@ -543,6 +543,8 @@ void testmaxpool(){
 
     maxpooll_4.maxpool(0);
 
+    std::cout<<"Yl_3[0] = "<<std::endl;
+    Yl_3[0].printMatrixForm();
     std::cout<<"Yl_4[0] = "<<std::endl;
     Yl_4[0].printMatrixForm();
 
@@ -552,6 +554,66 @@ void testmaxpool(){
     std::cout<<"dLdYl_3[0] = "<<std::endl;
     dLdYl_3[0].printMatrixForm();
 }
+void test1x1conv(){
+    /* 2x3x3 */
+    std::vector<std::vector<std::vector<double>>> inputYl_0_batchindex0 {
+        {
+            {10, 11, 12},
+            {13, 14, 15},
+            {16, 17, 18}
+        },
+        {
+            {19, 20, 21},
+            {22, 23, 24},
+            {25, 26, 27}
+        }
+    };
+    /* 3x1x1 */
+    std::vector<std::vector<std::vector<std::vector<double>>>> inputWl_1     {
+        {
+            {
+                {1}
+            },
+            {
+                {2}
+            },
+            {
+                {3}
+            }
+        },
+        {
+            {
+                {1}
+            },
+            {
+                {2}
+            },
+            {
+                {3}
+            }
+        }
+    };
+    int batchsize = 10;
+    tensor3d * Yl_0 = newZeroTensor3dArr(2,3,3,batchsize);
+    Yl_0[0].setVal(2,3,3,inputYl_0_batchindex0);
+    tensor4d * Wl_1 = newZeroTensor4dArr(2,3,1,1,batchsize);
+    Wl_1[0].setVal(2,3,1,1,inputWl_1);
+    tensor3d * Yl_1 = newZeroTensor3dArr(3,3,3,batchsize);
+
+    tensor3d * dLdYl_0 = newZeroTensor3dArr(2,3,3,batchsize);
+    tensor4d * dLdWl_1 = newZeroTensor4dArr(2,3,1,1,batchsize);
+    tensor3d * dLdYl_1 = newZeroTensor3dArr(3,3,3,batchsize);
+
+    conv2d convl_1(2,3,1,1,Yl_0,Yl_1,
+              dLdYl_0, dLdYl_1, dLdWl_1, nullptr, 
+              1,false,batchsize);
+
+    convl_1.setW(inputWl_1);
+    /*convl_1.setB(inputBl_1);*/
+    convl_1.convolve(0);
+    std::cout<<"Yl_1[0] = "<<std::endl;
+    Yl_1[0].printMatrixForm();
+}
 
 int main(){
     /*testtensor(10);*/
@@ -559,6 +621,7 @@ int main(){
     /*testconv2d_computeGrad();*/
     /*testtensorrelu_relu();*/
     /*testzeropadding();*/
-    testmaxpool();
+    /*testmaxpool();*/
+    /*test1x1conv();*/
     return 0;
 }
