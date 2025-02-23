@@ -2,6 +2,7 @@
 #include<vector>
 #include<random>
 #include<cmath>
+#include<numeric>
 
 struct dim3_t {
     int d;
@@ -9,7 +10,10 @@ struct dim3_t {
     int h;
 };
 
+class vector1d;
+
 class tensor3d {
+    friend class vector1d;
     double * arr;      /* dynamically allocated array */
     dim3_t arrdim;
     int dim3ToarrInx (dim3_t colInx){
@@ -710,13 +714,15 @@ class tensorBatchNorm{
     tensor3d * dLdYl_prev;
     tensor3d * dLdYl_curr;
     int batchSize;
-    vector<vector<double>> mus_per_depth;
-    vector<vector<double>> sigmas_per_depth;
+    std::vector<std::vector<double>> mus_per_depth;
+    std::vector<std::vector<double>> sigma2s_per_depth;
+    std::vector<double> sum_mus_per_depth;
+    std::vector<double> sum_sigma2s_per_depth;
     double epsilon;
     tensor3d gamma;
     tensor3d beta;
-    tensor3d dLdgamma;
-    tensor3d dLdbeta;
+    tensor3d * dLdgamma;
+    tensor3d * dLdbeta;
 
     double mu(int z){
         double tmpVal = 0;
@@ -725,11 +731,11 @@ class tensorBatchNorm{
         for(int x=0;x<dim.w;++x){
         for(int y=0;y<dim.h;++y){
             Yl_prevInx = {z,x,y};
-            tmpVal += Yl_prev[batchInx](Yl_prev);
+            tmpVal += Yl_prev[batchInx](Yl_prevInx);
         }
         }
         }
-        return tmpVal;
+        return tmpVal / (batchSize * dim.w * dim.h);
     }
     double sigma2(int z, double mu){
         double tmpVal = 0;
@@ -738,15 +744,18 @@ class tensorBatchNorm{
         for(int x=0;x<dim.w;++x){
         for(int y=0;y<dim.h;++y){
             Yl_prevInx = {z,x,y};
-            tmpVal += std::pow(Yl_prev[batchInx](Yl_prev) - mu, 2);
+            tmpVal += std::pow(Yl_prev[batchInx](Yl_prevInx) - mu, 2);
         }
         }
         }
         return tmpVal / (batchSize * dim.w * dim.h);
     }
     public:
-    tensorBatchNorm (tensor * Yprev, tensor * Ycurr, tensor * dLdYprev, tensor * dLdYcurr, int batch_size) : 
-                    Yl_prev(Yprev), Yl_curr(Ycurr), dLdYl_prev(dLdYprev), dLdYl_curr(dLdYcurr), batchSize(batch_size) {
+    tensorBatchNorm (tensor3d * Yprev, tensor3d * Ycurr, 
+                    tensor3d * dLdYprev, tensor3d * dLdYcurr, 
+                    tensor3d * dLdgamma_, tensor3d * dLdbeta_, int batch_size) : 
+                    Yl_prev(Yprev), Yl_curr(Ycurr), dLdYl_prev(dLdYprev), 
+                    dLdYl_curr(dLdYcurr), batchSize(batch_size), dLdgamma(dLdgamma_), dLdbeta(dLdbeta_) {
         if(Yprev[0].dim().d != Ycurr[0].dim().d || Yprev[0].dim().w != Ycurr[0].dim().w || Yprev[0].dim().h != Ycurr[0].dim().h){
             std::cerr<<"tensorBatchNorm : Yprev and Ycurr dimensions do not match: ";
             std::cerr<<Yprev[0].dim().d<<" "<<Yprev[0].dim().w<<" "<<Yprev[0].dim().h;
@@ -754,14 +763,21 @@ class tensorBatchNorm{
             throw 0;
         } 
         dim = Yprev[0].dim();
-        epsilon = 0.00001;
-        gamma.setUniformRandom(dim.d, 1, 1);
-        beta.setUniformRandom(dim.d, 1, 1);
-        dLdgamma.setZero(dim.d, 1, 1);
-        dLdbeta.setZero(dim.d, 1, 1);
+        epsilon = 0.0000001;
+        /*gamma.setUniformRandom(dim.d, 1, 1);
+        beta.setUniformRandom(dim.d, 1, 1);*/
+        gamma.setZero(dim.d,1,1);
+        for(int z=0;z<dim.d;++z){dim3_t i={z,0,0};gamma.setVal(i,1);}
+        beta.setZero(dim.d,1,1);
+
+
+        mus_per_depth.resize(dim.d);
+        sigma2s_per_depth.resize(dim.d);
+        sum_mus_per_depth.resize(dim.d);
+        sum_sigma2s_per_depth.resize(dim.d);
     }
     
-    void batchNorm(){
+    void batchnorm(){
         for(int z=0;z<dim.d;++z){
             double mu_B = mu(z);
             double sigma2_B = sigma2(z,mu_B);
@@ -774,17 +790,449 @@ class tensorBatchNorm{
              * m = (batchInx,x,y)
              * x_(batchInx,x,y) = {x_(batchInx,x,y)^(z=1), ... ,x_(batchInx,x,y)^(z=d)}
              * x_hat_(batchInx,x,y)^(z) = ( x_(batchInx,x,y)^(z) - mu^(z) ) / sqrt(sigma2^(z) + epsilon)
+             * y_(batchInx,x,y)^(z) = gamma^(z) * x_hat_(batchInx,x,y)^(z) + beta^(z)
              * */
             dim3_t i;
             for(int batchInx=0;batchInx<batchSize;++batchInx){
             for(int x=0;x<dim.w;++x){
             for(int y=0;y<dim.h;++y){
                 i={z,x,y};
-                double x_m = Yl_curr[batchInx](i);
+                double x_m = Yl_prev[batchInx](i);
                 double x_hat_m = (x_m - mu_B) / std::sqrt(sigma2_B + epsilon);
+                double y_m = g * x_hat_m + b;
+                Yl_curr[batchInx].setVal(i, y_m);
+
+                std::cout<<"("<<z<<" "<<x<<" "<<y<<") x_m "<<x_m<<" mu "<<mu_B<<" sigma2 "<<sigma2_B<<std::endl;
             }
+            }
+            }
+
+            mus_per_depth[z].push_back(mu_B);
+            sigma2s_per_depth[z].push_back(sigma2_B);
+        }
+
+        std::cout<<"mus_per_depth = "<<std::endl;
+        int depth=0;
+        for(auto & v: mus_per_depth){
+            std::cout<<"depth "<<depth<<" ";
+            for(auto & m: v){
+                std::cout<<m<<" ";
+            }
+            std::cout<<std::endl;
+            ++depth;
+        }
+    }
+    void computeGrad(){
+        std::cout<<"entered computeGrad()"<<std::endl;
+        std::cout<<"create dLdx_hat"<<std::endl;
+
+        std::vector<std::vector<std::vector<double>>> dLdx_hat;
+        dLdx_hat.resize(batchSize);
+        for(auto & v1 : dLdx_hat){
+        v1.resize(dim.w);
+        for(auto & v2 : v1){
+        v2.resize(dim.h);
+        }
+        }
+
+        /*std::cout<<"...success"<<std::endl<<"create dLdx_hat"<<std::endl;
+
+        std::vector<std::vector<std::vector<double>>> dLdx;
+        dLdx.resize(batchSize);
+        for(auto & v1 : dLdx){
+        v1.resize(dim.w);
+        for(auto & v2 : v1){
+        v2.resize(dim.h);
+        }
+        }
+
+
+        std::cout<<"...success"<<std::endl;*/
+
+        for(int z=0;z<dim.d;++z){
+
+            dim3_t zInx = {z,0,0};
+            double g = gamma(zInx);
+            double b = beta(zInx);
+            double mu_B = mu(z);
+            double sigma2_B = sigma2(z, mu_B);
+
+            double dLdx_hat_sum=0;
+
+            std::cout<<"z="<<z<<" g="<<g<<" b="<<b<<" mu_B="<<mu_B<<" sigma2_B="<<sigma2_B<<std::endl;
+
+            /* compute dLdx_hat */
+            std::cout<<"start compute dLdx_hat z="<<z<<std::endl;
+            for(int batchInx=0;batchInx<batchSize;++batchInx){
+            for(int xinx=0;xinx<dim.w;++xinx){
+            for(int yinx=0;yinx<dim.h;++yinx){
+                dim3_t i={z,xinx,yinx};
+                double dLdx_hat_val = dLdYl_curr[batchInx](i) * g;
+                dLdx_hat[batchInx][xinx][yinx] = dLdx_hat_val;
+                dLdx_hat_sum += dLdx_hat_val;
+                std::cout<<"    dLdx_hat["<<batchInx<<"]["<<xinx<<"]["<<yinx<<"] = "<<dLdx_hat[batchInx][xinx][yinx]<<" = "<<dLdx_hat_val<<std::endl;
+            }
+            }
+            }
+            std::cout<<"    dLdx_hat_sum = "<<dLdx_hat_sum<<std::endl;
+            std::cout<<"...success"<<std::endl;
+
+            /* compute dLdsigma2 */
+            std::cout<<"start compute dLdsigma2 z="<<z<<std::endl;
+            double dLdsigma2 = 0;
+            std::cout<<"    startForLoop(batchInx,xinx,yinx)"<<std::endl;
+            for(int batchInx=0;batchInx<batchSize;++batchInx){
+            for(int xinx=0;xinx<dim.w;++xinx){
+            for(int yinx=0;yinx<dim.h;++yinx){
+                /*std::cout<<"    dLdsigma2 batchInx,x,y "<<batchInx<<" "<<xinx<<" "<<yinx<<std::endl;*/
+                dim3_t i={z,xinx,yinx};
+                double x = Yl_prev[batchInx](i);
+                /*std::cout<<"    x = "<<x<<std::endl;*/
+                dLdsigma2 += dLdx_hat[batchInx][xinx][yinx] * (x - mu_B);
+                /*std::cout<<"    dLdx_hat["<<batchInx<<"]["<<xinx<<"]["<<yinx<<"] = "<<dLdx_hat[batchInx][xinx][yinx]<<std::endl;
+                std::cout<<"    dLdsigma2 += "<<dLdx_hat[batchInx][xinx][yinx] * (x - mu_B)<<std::endl;*/
+                /*std::cout<<"    dLdsigma2 += "<<dLdx_hat[batchInx][xinx][yinx]<<" * ("<<x<<" - "<<mu_B<<")"<<std::endl;*/
+            }
+            }
+            }
+            std::cout<<"    dLdsigma2 outside forloop dLdsigma2sum = "<<dLdsigma2<<std::endl;
+            std::cout<<"    sigma2_B + epsilon = "<<sigma2_B + epsilon<<std::endl;
+            dLdsigma2 = dLdsigma2 * (-0.5) * std::pow(sigma2_B + epsilon, -1.5);
+            std::cout<<"...success dLdsigma2 = "<<dLdsigma2<<std::endl;
+
+            /* compute dLdmu */
+            std::cout<<"start compute dLdmu z="<<z<<std::endl;
+            double dLdmu = dLdx_hat_sum / std::sqrt(sigma2_B + epsilon) * (-1);
+            /* commented below tmp = 0 */
+            /*{
+            double tmp=0;
+            for(int batchInx=0;batchInx<batchSize;++batchInx){
+            for(int xinx=0;xinx<dim.w;++xinx){
+            for(int yinx=0;yinx<dim.h;++yinx){
+                dim3_t i={z,xinx,yinx};
+                double x = Yl_prev[batchInx](i);
+                tmp += x - mu_B;
+            }
+            }
+            }
+            tmp *= dLdsigma2 * 2 * (-1);
+            tmp /= batchSize * dim.w * dim.h;
+            std::cout<<"    tmp = "<<tmp<<std::endl;
+            dLdmu += tmp;
+            }*/
+            std::cout<<"...success dLdmu = "<<dLdmu<<std::endl;
+
+            /* compute dLdx */
+            std::cout<<"start compute dLdx z="<<z<<std::endl;
+            for(int batchInx=0;batchInx<batchSize;++batchInx){
+            for(int xinx=0;xinx<dim.w;++xinx){
+            for(int yinx=0;yinx<dim.h;++yinx){
+                std::cout<<"    batchInx "<<batchInx<<" xinx "<<xinx<<" yinx "<<yinx<<std::endl;
+                dim3_t i={z,xinx,yinx};
+                double x = Yl_prev[batchInx](i);
+                std::cout<<"    x = "<<x<<" dLdx_hat = "<<dLdx_hat[batchInx][xinx][yinx]<<std::endl;
+                std::cout<<"    m = "<<batchSize * dim.w * dim.h<<std::endl;
+                double dLdx = dLdx_hat[batchInx][xinx][yinx] / std::sqrt(sigma2_B + epsilon) 
+                            + dLdsigma2 * (x - mu_B) * 2 / (batchSize * dim.w * dim.h)
+                            + dLdmu / (batchSize * dim.w * dim.h);
+
+                dLdYl_prev[batchInx].setVal(i, dLdx);
+            }
+            }
+            }
+            std::cout<<"...success"<<std::endl;
+
+            /* compute dLdgamma */
+            {
+            double tmp=0;
+            for(int batchInx=0;batchInx<batchSize;++batchInx){
+            for(int xinx=0;xinx<dim.w;++xinx){
+            for(int yinx=0;yinx<dim.h;++yinx){
+                dim3_t i={z,xinx,yinx};
+                double x = Yl_prev[batchInx](i);
+                double x_hat = (x - mu_B) / std::sqrt(sigma2_B + epsilon);
+                tmp +=  dLdYl_curr[batchInx](i) * x_hat; 
+            }
+            }
+            }
+            dLdgamma[0].setVal(zInx, tmp);
+            }
+
+            /* compute dLdbeta */
+            {
+            double tmp=0;
+            for(int batchInx=0;batchInx<batchSize;++batchInx){
+            for(int xinx=0;xinx<dim.w;++xinx){
+            for(int yinx=0;yinx<dim.h;++yinx){
+                dim3_t i={z,xinx,yinx};
+                tmp +=  dLdYl_curr[batchInx](i); 
+            }
+            }
+            }
+            dLdbeta[0].setVal(zInx, tmp);
+            }
+        }
+    }
+    void endOfEpoch(){
+
+        for(int z=0;z<dim.d;++z){
+            double sum_mus = std::accumulate(mus_per_depth[z].begin(), mus_per_depth[z].end(), 0.0);
+            mus_per_depth[z].clear();
+            sum_mus_per_depth[z] = sum_mus;
+            double sum_sigma2s = std::accumulate(sigma2s_per_depth[z].begin(), sigma2s_per_depth[z].end(), 0.0);
+            sigma2s_per_depth[z].clear();
+            sum_sigma2s_per_depth[z] = sum_sigma2s;
+        }
+        
+    }
+
+    void inference(){
+        /* once the network has been trained, use the normalization of the population 
+         * x_hat = ( x - E ) / std::sqrt(Var + epsilon)
+         * where
+         * E = Expected_Value(mu_(batchInx,x,y))
+         * Var = m / (m-1) * Expected_Value(sigma2_(batchInx,x,y))
+         *
+         * then batch normalization during inference is
+         * y = gamma * x_hat + beta
+         *   = gamma/sqrt(Var+epsilon) * x + (beta - gamma*E/std::sqrt(Var+epsilon))
+         * */
+        for(int z=0;z<dim.d;++z){
+            double E = sum_mus_per_depth[z] / (dim.w * dim.h);
+            double Var = sum_sigma2s_per_depth[z] / (dim.w * dim.h - 1);
+
+            dim3_t zInx = {z,0,0};
+            double a = gamma(zInx) / std::sqrt(Var + epsilon);
+            double b = beta(zInx) - ( gamma(zInx) * E ) / std::sqrt(Var + epsilon);
+
+            for(int xinx=0;xinx<dim.w;++xinx){
+            for(int yinx=0;yinx<dim.h;++yinx){
+                dim3_t i = {z,xinx,yinx};
+                Yl_curr[0].setVal(i, a * Yl_prev[0](i) + b);
             }
             }
         }
     }
+};
+
+class vector1d {
+    double * arr;   /* dynamically allocated */
+    tensor3d * pt3d;
+    public:
+    int size;
+
+    vector1d () {arr = nullptr; pt3d = nullptr; size = 0;}  /* constructor */
+    vector1d (int size_val) {arr = new double[size_val] (); pt3d = nullptr; size = size_val;}   /* zero initialization of array */
+    vector1d (tensor3d & t3d) {(*this).setVal(t3d);}
+
+    double operator() (int inx) {
+        if(arr == nullptr && (*pt3d).arr == nullptr){
+            std::cerr<<"vector1d operator() : arr of vector1d is not initialized"<<std::endl;
+            throw 0;
+        }
+        double * a;
+        if(arr == nullptr){
+            a = (*pt3d).arr;
+        } else {
+            a = arr;
+        }
+        
+        if(inx >= size){
+            std::cerr<<"vector1d  operator() : index "<<inx<<" out of range : size = "<<size<<std::endl;
+            throw 0;
+        }
+        return a[inx];
+    }
+
+    void setVal(int inx, double val){
+        if(arr == nullptr && (*pt3d).arr == nullptr){
+            std::cerr<<"vector1d setVal(int,double) : arr of vector1d is not initialized"<<std::endl;
+            throw 0;
+        }
+        double * a;
+        if(arr == nullptr){
+            a = (*pt3d).arr;
+        } else {
+            a = arr;
+        }
+         if(inx >= size){
+            std::cerr<<"vector1d  setVal(int,double) : index "<<inx<<" out of range : size = "<<size<<std::endl;
+            throw 0;
+        }
+        a[inx] = val;
+    }
+
+    void setVal(std::vector<double> & v){
+        if(v.size() != size){
+            std::cerr<<"vector1d setVal(std::vector<double>) input vector has different dimensions with vector1d: "<<v.size()<<" != "<<size<<std::endl;
+            throw 0;
+        }
+        for(int i=0;i<size;++i){
+            arr[i] = v[i];
+        }
+    }
+
+    void setVal(tensor3d & t3d){    /* reference of t3d */
+        arr = nullptr; 
+        pt3d = & t3d;   /* pointer of t3d */
+        if(t3d.arr == nullptr){
+            if(t3d.arrdim.d == 0 && t3d.arrdim.w == 0 && t3d.arrdim.h == 0){
+                std::cerr<<"vector1d constructor: input param tensor3d is not initialized, have arrdim={0,0,0}"<<std::endl;
+                throw 0;
+            }else{
+                t3d.setZero();
+            }
+        }
+        size = t3d.arrdim.d * t3d.arrdim.w * t3d.arrdim.h;
+    }
+
+    void setZero(int size_val){
+        if(pt3d != nullptr){
+            std::cerr<<"vector1d setZero(int): this vector1d is initialized already with a tensor3d object. "<<std::endl;
+            std::cerr<<"    use setZero() to initialize this vector1d (also initialize associated tensor3d object"<<std::endl;
+            throw 0;
+        }
+        size = size_val;
+        if(arr != nullptr){
+            delete [] arr;
+        }
+        arr = new double [size] ();
+    }
+
+    /*void setZero(){
+        if(arr == nullptr && pt3d == nullptr){
+            std::cerr<<"vector1d setZero(): object should be initialized to use setZero(). initialize to zero using setZero(int) instead"<<std::endl;
+            throw 0;
+        }
+        if(arr != nullptr){
+            (*this).setZero(size);
+        } else if(pt3d != nullptr){
+            int d = (*pt3d).arrdim.d;
+            int w = (*pt3d).arrdim.w;
+            int h = (*pt3d).arrdim.h;
+            if(d>0 && w>0 && h>0){
+                (*pt3d).setZero(d,w,h);
+            }else{
+                std::cerr<<"vector1d setZero(): tensor3d object assigned to vector1d is not initialized: ";
+                std::cerr<<"dimensions = "<<d<<" "<<w<<" "<<h<<std::endl;
+                throw 0;
+            }
+        } else {
+            std::cerr<<"vector1d setZero(): arr==nullptr && pt3d==nullptr : something's wrong. already should have been covered."<<std::endl;
+            throw 0;
+        }
+    }*/
+
+    void setUniformRandom(int size_val){
+        if(pt3d != nullptr){
+            std::cerr<<"vector1d setUniformRandom(int): this vector1d is initialized with a tensor3d."<<std::endl;
+            std::cerr<<"    if you want to randomly initialize with the tensor3d, use setUniformRandom() instead"<<std::endl;
+            throw 0;
+        }
+        (*this).setZero(size_val);
+
+        std::mt19937 gen(123);
+        std::uniform_real_distribution<> dis(-1, 1);
+
+        for(int i=0;i<size_val;++i){
+            (*this).setVal(i, dis(gen));
+        }
+    }
+
+    /*void setUniformRandom(){
+        if(arr!=nullptr){
+            std::cerr<<"vector1d setUniformRandom(): this vector1d is initialized with internal arr."<<std::endl;
+            std::cerr<<"    if you want to randomly initialize with internal arr, use setUniformRandom(int) instead"<<std::endl;
+            throw 0;
+        }
+        dim3_t t_dim = (*pt3d).dim();
+        (*pt3d).setUniformRandom(t_dim.d, t_dim.w, t_dim.h);
+    }*/
+    
+    void printVector(){
+        std::cout<<"( ";
+        for(int i=0;i<size;++i){
+            std::cout<<(*this)(i)<<" ";
+        }
+        std::cout<<")"<<std::endl;
+    }
+};
+
+
+vector1d * newZeroVector1dArr(int size, int arrSize){
+    vector1d * v1darr = new vector1d [arrSize];
+    for(int i=0;i<arrSize;++i){
+        v1darr[i].setZero(size);
+    }
+    return v1darr;
+}
+
+vector1d * newVector1dArrFromTensor3dArr(tensor3d * t3darr, int arrSize){
+    vector1d * v1darr = new vector1d [arrSize];
+    for(int i=0;i<arrSize;++i){
+        v1darr[i].setVal(t3darr[i]);
+    }
+    return v1darr;
+}
+
+class v1dAffineTransform{
+    vector1d * x;
+    vector1d * y;
+    vector1d * dLdx;
+    vector1d * dLdy;
+    tensor3d * dLdW;
+    vector1d * dLdb;
+
+    int rows;
+    int cols;
+
+    tensor3d W;
+    vector1d b;
+    int batchSize;
+    public:
+    v1dAffineTransform (vector1d * y_prev, vector1d * y_curr,
+                        vector1d * dLdy_prev, vector1d * dLdy_curr, tensor3d * dLdW_curr, vector1d * dLdb_curr, int batch_size) : 
+                        x(y_prev), y(y_curr), 
+                        dLdx(dLdy_prev), dLdy(dLdy_curr), dLdW(dLdW_curr), dLdb(dLdb_curr), batchSize(batch_size) {
+
+
+        rows = y_curr[0].size;
+        cols = y_prev[0].size;
+
+        W.setUniformRandom(1,rows,cols);
+        b.setUniformRandom(rows);
+    }
+
+    void setW(std::vector<std::vector<std::vector<double>>> & Wvector){
+        W.setVal(1,rows,cols,Wvector);
+    }
+    void setW(std::vector<std::vector<double>> & Wvector){
+        dim3_t Winx;
+        for(int row=0;row<rows;++row){
+        for(int col=0;col<cols;++col){
+            Winx = {0,row,col};
+            W.setVal(Winx, Wvector[row][col]);
+        }
+        }
+    }
+    void setb(std::vector<double> & bvector){
+        b.setVal(bvector);
+    }
+
+    void printW(){ W.printMatrixForm(); }
+    void printb(){ b.printVector(); }
+
+    void affine(int batchInx=0) {
+
+        dim3_t Winx;
+        for(int row=0;row<rows;++row){
+            double tmpVal = b(row);
+        for(int col=0;col<cols;++col){
+            Winx = {0,row,col};
+            tmpVal += W(Winx) * x[batchInx](col);
+        }
+            y[batchInx].setVal(row, tmpVal);
+        }
+    }
+
 };

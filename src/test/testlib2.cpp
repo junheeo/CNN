@@ -614,6 +614,241 @@ void test1x1conv(){
     std::cout<<"Yl_1[0] = "<<std::endl;
     Yl_1[0].printMatrixForm();
 }
+void testbatchnorm(){
+    /*
+    std::vector<std::vector<std::vector<double>>> inputYl_0_batchindex0 {
+        {
+            {1, 4},
+            {7, 10},
+        },
+        {
+            {2, 5},
+            {8, 11}
+        },
+        {
+            {3, 6},
+            {9, 12}
+        }
+    };
+    std::vector<std::vector<std::vector<double>>> inputdLdYl_1_batchindex0 {
+        {
+            {0.1, 0.2},
+            {0.3, 0.5},
+        },
+        {
+            {0.51, 0.52},
+            {0.53, 0.55}
+        },
+        {
+            {4, 5},
+            {6, 8}
+        }
+    };
+    int batchsize = 2;
+    tensor3d * Yl_0 = newZeroTensor3dArr(3,2,2,batchsize);
+    for(int i=0;i<batchsize;++i){
+        Yl_0[i].setVal(3,2,2,inputYl_0_batchindex0);
+    }
+    tensor3d * Yl_1 = newZeroTensor3dArr(3,2,2,batchsize);
+
+    tensor3d * dLdYl_0 = newZeroTensor3dArr(3,2,2,batchsize);
+    tensor3d * dLdgamma = newZeroTensor3dArr(3,1,1, 1);
+    tensor3d * dLdbeta = newZeroTensor3dArr(3,1,1, 1);
+    tensor3d * dLdYl_1 = newZeroTensor3dArr(3,2,2,batchsize);
+    for(int i=0;i<batchsize;++i){
+        dLdYl_1[i].setVal(3,2,2,inputdLdYl_1_batchindex0);
+    }
+
+    tensorBatchNorm batchnorml_1(Yl_0,Yl_1,
+            dLdYl_0,dLdYl_1,dLdgamma, dLdbeta, batchsize);
+    batchnorml_1.batchnorm();
+    std::cout<<"Yl_1[0] = "<<std::endl;
+    Yl_1[0].printMatrixForm();
+    std::cout<<"Yl_1[1] = "<<std::endl;
+    Yl_1[1].printMatrixForm();
+
+    batchnorml_1.computeGrad();
+    std::cout<<"dLdYl_1[0] = "<<std::endl;
+    dLdYl_1[0].printMatrixForm();
+    std::cout<<"dLdYl_1[1] = "<<std::endl;
+    dLdYl_1[1].printMatrixForm();
+    std::cout<<"dLdYl_0[0] = "<<std::endl;
+    dLdYl_0[0].printMatrixForm();
+    std::cout<<"dLdYl_0[1] = "<<std::endl;
+    dLdYl_0[1].printMatrixForm();
+    */
+
+    std::vector<std::vector<std::vector<double>>> inputYl_0_batchindex0 {
+        {
+            {1, 2},
+            {3, 4},
+        },
+        {
+            {9, 10},
+            {11, 12}
+        }
+    };
+    std::vector<std::vector<std::vector<double>>> inputYl_0_batchindex1 {
+        {
+            {5, 6},
+            {7, 8},
+        },
+        {
+            {13, 14},
+            {15, 16}
+        }
+    };
+    std::vector<std::vector<std::vector<double>>> inputdLdYl_1_batchindex0 {
+        {
+            {0.1, 0.2},
+            {0.3, 0.4},
+        },
+        {
+            {5.1, 5.2},
+            {5.3, 5.4}
+        }
+    };
+    std::vector<std::vector<std::vector<double>>> inputdLdYl_1_batchindex1 {
+        {
+            {0.5, 0.6},
+            {0.7, 0.8},
+        },
+        {
+            {5.1, 5.2},
+            {5.3, 5.4}
+        }
+    };
+
+    int batchsize = 2;
+    tensor3d * Yl_0 = newZeroTensor3dArr(2,2,2,batchsize);
+    Yl_0[0].setVal(2,2,2,inputYl_0_batchindex0);
+    Yl_0[1].setVal(2,2,2,inputYl_0_batchindex1);
+    tensor3d * Yl_1 = newZeroTensor3dArr(2,2,2,batchsize);
+
+    tensor3d * dLdYl_0 = newZeroTensor3dArr(2,2,2,batchsize);
+    tensor3d * dLdgamma = newZeroTensor3dArr(2,1,1, 1);
+    tensor3d * dLdbeta = newZeroTensor3dArr(2,1,1, 1);
+    tensor3d * dLdYl_1 = newZeroTensor3dArr(2,2,2,batchsize);
+    dLdYl_1[0].setVal(2,2,2,inputdLdYl_1_batchindex0);
+    dLdYl_1[1].setVal(2,2,2,inputdLdYl_1_batchindex1);
+
+    tensorBatchNorm batchnorml_1(Yl_0,Yl_1,
+            dLdYl_0,dLdYl_1,dLdgamma, dLdbeta, batchsize);
+
+    batchnorml_1.batchnorm();
+    std::cout<<"Yl_1[0] = "<<std::endl;
+    Yl_1[0].printMatrixForm();
+    std::cout<<"Yl_1[1] = "<<std::endl;
+    Yl_1[1].printMatrixForm();
+
+    batchnorml_1.computeGrad();
+    std::cout<<"dLdYl_1[0] = "<<std::endl;
+    dLdYl_1[0].printMatrixForm();
+    std::cout<<"dLdYl_1[1] = "<<std::endl;
+    dLdYl_1[1].printMatrixForm();
+    std::cout<<"dLdYl_0[0] = "<<std::endl;
+    dLdYl_0[0].printMatrixForm();
+    std::cout<<"dLdYl_0[1] = "<<std::endl;
+    dLdYl_0[1].printMatrixForm();
+
+    std::cout<<"dLdgamma = "<<std::endl;
+    dLdgamma[0].printMatrixForm();
+    std::cout<<"dLdbeta = "<<std::endl;
+    dLdbeta[0].printMatrixForm();
+}
+
+void testvector1d(){
+    std::vector<std::vector<std::vector<double>>> inputYl_0_batchindex0 {
+        {
+            {1, 2},
+            {3, 4},
+        },
+        {
+            {9, 10},
+            {11, 12}
+        }
+    };
+    std::vector<std::vector<std::vector<double>>> inputYl_0_batchindex1 {
+        {
+            {5, 6},
+            {7, 8},
+        },
+        {
+            {13, 14},
+            {15, 16}
+        }
+    };
+
+    int batchsize = 2;
+    tensor3d * Yl_0 = newZeroTensor3dArr(2,2,2,batchsize);
+    Yl_0[0].setVal(2,2,2,inputYl_0_batchindex0);
+    Yl_0[1].setVal(2,2,2,inputYl_0_batchindex1);
+
+    vector1d * Yffl_0 = newVector1dArrFromTensor3dArr(Yl_0,batchsize);
+    std::cout<<"Yffl_0[0] = "<<std::endl;
+    Yffl_0[0].printVector();
+    std::cout<<"Yffl_0[1] = "<<std::endl;
+    Yffl_0[1].printVector();
+ 
+    vector1d * Yffl_1 = newZeroVector1dArr(4,batchsize);
+    std::cout<<"Yffl_1[0] = "<<std::endl;
+    Yffl_1[0].printVector();
+    std::cout<<"Yffl_1[1] = "<<std::endl;
+    Yffl_1[1].printVector();
+
+    {
+    vector1d Yffl_2 {3};
+    std::cout<<"Yffl_2 = "<<std::endl;
+    Yffl_2.printVector();
+    std::cout<<"Yffl_2.setUniformRandom(3) = "<<std::endl;
+    Yffl_2.setUniformRandom(3);
+    Yffl_2.printVector();
+    }
+}
+void testv1daffinetransform(){
+    std::vector<std::vector<std::vector<double>>> inputYl_0_batchindex0 {
+        {
+            {1, 2},
+            {3, 4},
+        },
+        {
+            {5, 6},
+            {7, 8}
+        }
+    };
+    std::vector<std::vector<double>> inputWffl_1 {
+        {11,12,13,14,15,16,17,18},
+        {21,22,23,24,25,26,27,28}
+    };
+    std::vector<double> inputbffl_1 {1,2};
+    std::vector<double> inputdLdYffl_1 {0.1,0.2};
+
+    int batchsize = 2;
+    tensor3d * Yl_0 = newZeroTensor3dArr(2,2,2,batchsize);
+    Yl_0[0].setVal(2,2,2,inputYl_0_batchindex0);
+
+    vector1d * Yffl_0 = newVector1dArrFromTensor3dArr(Yl_0,batchsize);
+    vector1d * Yffl_1 = newZeroVector1dArr(2,batchsize);
+    vector1d * dLdYffl_0 = newZeroVector1dArr(8,batchsize);
+    vector1d * dLdYffl_1 = newZeroVector1dArr(2,batchsize);
+    tensor3d * dLdWffl_1 = newZeroTensor3dArr(1,2,8,batchsize);
+    vector1d * dLdbffl_1 = newZeroVector1dArr(2,batchsize);
+
+    v1dAffineTransform affineffl_1 {Yffl_0, Yffl_1, dLdYffl_0, dLdYffl_1, dLdWffl_1, dLdbffl_1, batchsize};
+
+    affineffl_1.setb(inputbffl_1);
+    std::cout<<"affineffl_1.printb() = "<<std::endl;
+    affineffl_1.printb();
+    affineffl_1.setW(inputWffl_1);
+    std::cout<<"affineffl_1.printW() = "<<std::endl;
+    affineffl_1.printW();
+
+    affineffl_1.affine(0);
+    std::cout<<"Yffl_0[0] = "<<std::endl;
+    Yffl_0[0].printVector();
+    std::cout<<"Yffl_1[0] = "<<std::endl;
+    Yffl_1[0].printVector();
+}
 
 int main(){
     /*testtensor(10);*/
@@ -623,5 +858,8 @@ int main(){
     /*testzeropadding();*/
     /*testmaxpool();*/
     /*test1x1conv();*/
+    /*testbatchnorm();*/
+    /*testvector1d();*/
+    testv1daffinetransform();
     return 0;
 }
