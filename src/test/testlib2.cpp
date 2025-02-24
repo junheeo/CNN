@@ -831,6 +831,7 @@ void testv1daffinetransform(){
     vector1d * Yffl_1 = newZeroVector1dArr(2,batchsize);
     vector1d * dLdYffl_0 = newZeroVector1dArr(8,batchsize);
     vector1d * dLdYffl_1 = newZeroVector1dArr(2,batchsize);
+    dLdYffl_1[0].setVal(inputdLdYffl_1);
     tensor3d * dLdWffl_1 = newZeroTensor3dArr(1,2,8,batchsize);
     vector1d * dLdbffl_1 = newZeroVector1dArr(2,batchsize);
 
@@ -848,6 +849,44 @@ void testv1daffinetransform(){
     Yffl_0[0].printVector();
     std::cout<<"Yffl_1[0] = "<<std::endl;
     Yffl_1[0].printVector();
+
+    affineffl_1.computeGrad(0);
+    std::cout<<"dLYffl_1[0] = "<<std::endl;
+    dLdYffl_1[0].printVector();
+    std::cout<<"dLYffl_0[0] = "<<std::endl;
+    dLdYffl_0[0].printVector();
+    std::cout<<"dLdWffl_1[0] = "<<std::endl;
+    dLdWffl_1[0].printMatrixForm();
+    std::cout<<"dLdbffl_1[0] = "<<std::endl;
+    dLdbffl_1[0].printVector();
+}
+
+void testv1dsoftmax(){
+    std::vector<double> inputyffl_1_batchindex0 {1, 2, 3};
+    std::vector<double> inputdLdyffl_2_batchindex0 {0.1, 0.2, 0.3};
+
+    int batchsize = 2;
+    vector1d * yffl_1 = newZeroVector1dArr(3,batchsize);
+    yffl_1[0].setVal(inputyffl_1_batchindex0);
+    vector1d * yffl_2 = newZeroVector1dArr(3,batchsize);
+    vector1d * dLdyffl_1 = newZeroVector1dArr(3,batchsize);
+    vector1d * dLdyffl_2 = newZeroVector1dArr(3,batchsize);
+    dLdyffl_2[0].setVal(inputdLdyffl_2_batchindex0);
+
+    v1dsoftmax softmaxffl_2 {yffl_1,yffl_2,dLdyffl_1,dLdyffl_2,batchsize};
+
+    softmaxffl_2.softmax(0);
+    std::cout<<"yffl_1[0] = "<<std::endl;
+    yffl_1[0].printVector();
+    std::cout<<"yffl_2[0] = "<<std::endl;
+    yffl_2[0].printVector();
+    std::cout<<"answer = 0.090031, 0.244728, 0.665241"<<std::endl;
+
+    softmaxffl_2.computeGrad(0);
+    std::cout<<"dLdyffl_2[0] = "<<std::endl;
+    dLdyffl_2[0].printVector();
+    std::cout<<"dLdyffl_1[0] = "<<std::endl;
+    dLdyffl_1[0].printVector();
 }
 
 int main(){
@@ -860,6 +899,7 @@ int main(){
     /*test1x1conv();*/
     /*testbatchnorm();*/
     /*testvector1d();*/
-    testv1daffinetransform();
+    /*testv1daffinetransform();*/
+    testv1dsoftmax();
     return 0;
 }

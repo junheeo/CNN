@@ -1024,6 +1024,13 @@ class vector1d {
     vector1d () {arr = nullptr; pt3d = nullptr; size = 0;}  /* constructor */
     vector1d (int size_val) {arr = new double[size_val] (); pt3d = nullptr; size = size_val;}   /* zero initialization of array */
     vector1d (tensor3d & t3d) {(*this).setVal(t3d);}
+    ~vector1d () {
+        if(arr != nullptr){
+            delete [] arr;
+        }
+        pt3d = nullptr;
+        size = 0;
+    }
 
     double operator() (int inx) {
         if(arr == nullptr && (*pt3d).arr == nullptr){
@@ -1148,6 +1155,18 @@ class vector1d {
         dim3_t t_dim = (*pt3d).dim();
         (*pt3d).setUniformRandom(t_dim.d, t_dim.w, t_dim.h);
     }*/
+
+    double max(){
+         double maxVal = (*this)(0);
+         double tmp;
+         for(int i=1;i<size;++i){
+             tmp = (*this)(i);
+             if(tmp > maxVal){
+                 maxVal = tmp;
+             }
+         }
+         return maxVal;
+    }
     
     void printVector(){
         std::cout<<"( ";
@@ -1156,6 +1175,7 @@ class vector1d {
         }
         std::cout<<")"<<std::endl;
     }
+
 };
 
 
@@ -1235,4 +1255,67 @@ class v1dAffineTransform{
         }
     }
 
+    void computeGrad(int batchInx=0){
+        
+        /* compute dLdx */
+        for(int c=0;c<cols;++c){
+            double tmpVal=0;
+        for(int r=0;r<rows;++r){
+            dim3_t WInx = {0,r,c};
+            tmpVal += W(WInx) * dLdy[batchInx](r);
+        }
+            dLdx[batchInx].setVal(c, tmpVal);
+        }
+
+        /* compute dLdW */
+        for(int r=0;r<rows;++r){
+        for(int c=0;c<cols;++c){
+            dim3_t WInx = {0,r,c};
+            dLdW[batchInx].setVal(WInx, dLdy[batchInx](r) * x[batchInx](c));
+        }
+        }
+
+        /* compute dLdb */
+        for(int r=0;r<rows;++r){
+            dLdb[batchInx].setVal(r, dLdy[batchInx](r));
+        }
+    }
+};
+
+class v1dsoftmax {
+    vector1d * z;
+    vector1d * y;
+    vector1d * dLdz;
+    vector1d * dLdy;
+    int size;
+    int batchSize;
+    public:
+    v1dsoftmax (vector1d * y_prev, vector1d * y_curr, vector1d * dLdy_prev, vector1d * dLdy_curr, int batch_size) : 
+             z(y_prev), y(y_curr), dLdz(dLdy_prev), dLdy(dLdy_curr), batchSize(batch_size) {
+        if(y_prev[0].size != y_curr[0].size){
+            std::cerr<<"v1dsoftmax constructor: y_prev and y_curr should have same size: "<<y_prev[0].size<<" "<<y_curr[0].size<<std::endl;
+        }
+        size = z[0].size;
+        
+    }
+
+    void softmax(int batchInx){     /* safe softmax */
+        double maxz_val= z[batchInx].max();
+        double sum_e_val=0;
+        for(int j=0;j<size;++j){
+            sum_e_val += std::exp(z[batchInx](j) - maxz_val);
+        }
+
+        for(int i=0;i<size;++i){
+            y[batchInx].setVal(i, std::exp(z[batchInx](i) - maxz_val) / sum_e_val);
+        }
+    }
+
+    void computeGrad(int batchInx){     /* dsoftmax(z)/dz = softmaz(z) * (1 - softmax(z)) */
+        for(int i=0;i<size;++i){
+            double yVal = y[batchInx](i);
+            dLdz[batchInx].setVal(i, dLdy[batchInx](i) * yVal * (1 - yVal));
+        }
+    }
+    
 };
