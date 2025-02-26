@@ -251,9 +251,12 @@ void testconv2d_computeGrad(){
     /*conv2d convl_1(2,3,2,2,Yl_0,Yl_1,
               dLdYl_0, dLdYl_1, dLdWl_1, dLdBl_1, 1,true);
               */
-    conv2d convl_1(2,3,2,2,Yl_0,Yl_1,
+
+    /*conv2d convl_1(2,3,2,2,Yl_0,Yl_1,
               dLdYl_0, dLdYl_1, dLdWl_1, nullptr, 
-              1,false,batchsize);
+              1,false,batchsize);*/
+    conv2d convl_1(2,3,2,2,Yl_0,Yl_1,1,false,batchsize);
+
 
     convl_1.setW(inputWl_1);
     /*convl_1.setB(inputBl_1);*/
@@ -263,6 +266,7 @@ void testconv2d_computeGrad(){
     std::cout<<"dLdYl_0[0] = "<<std::endl;
     dLdYl_0[0].printMatrixForm();
 
+    convl_1.setGradientTensors(dLdYl_0, dLdYl_1, dLdWl_1, nullptr);
     convl_1.computeGrad(0);
 
     std::cout<<"dLdYl_0[0] = "<<std::endl;
@@ -356,14 +360,18 @@ void testtensorrelu_relu(){
     convl_1.setB(inputBl_1);
     convl_1.convolve(0);
 
-    tensorRelu relul_2(3,2,2,Yl_1,Yl_2,
-                dLdYl_1,dLdYl_2,batchsize);
+    /*tensorRelu relul_2(3,2,2,Yl_1,Yl_2,
+                dLdYl_1,dLdYl_2,batchsize);*/
+    tensorRelu relul_2(3,2,2,Yl_1,Yl_2,batchsize);
+
     relul_2.relu(0);
 
     std::cout<<"Yl_1[0] = "<<std::endl;
     Yl_1[0].printMatrixForm();
     std::cout<<"Yl_2[0] = relu(Yl_1[0]) = "<<std::endl;
     Yl_2[0].printMatrixForm();
+
+    relul_2.setGradientTensors(dLdYl_1,dLdYl_2);
 
     relul_2.computeGrad(0);
     std::cout<<"dLdYl_2[0] = "<<std::endl;
@@ -472,9 +480,10 @@ void testzeropadding(){
                 dLdYl_1,dLdYl_2,batchsize);
     relul_2.relu(0);
 
-    tensorZeroPad padl_3 (Yl_2, Yl_3, dLdYl_2, dLdYl_3,batchsize);
-    padl_3.zeropad(0);
+    /*tensorZeroPad padl_3 (Yl_2, Yl_3, dLdYl_2, dLdYl_3,batchsize);*/
+    tensorZeroPad padl_3 (Yl_2, Yl_3, batchsize);
 
+    padl_3.zeropad(0);
 
     std::cout<<"Yl_1[0] = "<<std::endl;
     Yl_1[0].printMatrixForm();
@@ -482,6 +491,8 @@ void testzeropadding(){
     Yl_2[0].printMatrixForm();
     std::cout<<"Yl_3[0] = "<<std::endl;
     Yl_3[0].printMatrixForm();
+
+    padl_3.setGradientTensors(dLdYl_2, dLdYl_3);
 
     padl_3.computeGrad(0);
     std::cout<<"dLdYl_3[0] = "<<std::endl;
@@ -538,8 +549,9 @@ void testmaxpool(){
     tensor3d * dLdYl_4 = newZeroTensor3dArr(2,2,2,batchsize);
     dLdYl_4[0].setVal(2,2,2,inputdLdYl_4_batchindex0);
 
-    tensorMaxPool maxpooll_4(Yl_3, Yl_4,
-                            dLdYl_3, dLdYl_4, batchsize);
+    /*tensorMaxPool maxpooll_4(Yl_3, Yl_4,
+                            dLdYl_3, dLdYl_4, batchsize);*/
+    tensorMaxPool maxpooll_4(Yl_3, Yl_4, batchsize);
 
     maxpooll_4.maxpool(0);
 
@@ -547,6 +559,8 @@ void testmaxpool(){
     Yl_3[0].printMatrixForm();
     std::cout<<"Yl_4[0] = "<<std::endl;
     Yl_4[0].printMatrixForm();
+
+    maxpooll_4.setGradientTensors(dLdYl_3, dLdYl_4);
 
     maxpooll_4.computeGrad(0);
     std::cout<<"dLdYl_4[0] = "<<std::endl;
@@ -732,14 +746,17 @@ void testbatchnorm(){
     dLdYl_1[0].setVal(2,2,2,inputdLdYl_1_batchindex0);
     dLdYl_1[1].setVal(2,2,2,inputdLdYl_1_batchindex1);
 
-    tensorBatchNorm batchnorml_1(Yl_0,Yl_1,
-            dLdYl_0,dLdYl_1,dLdgamma, dLdbeta, batchsize);
+    /*tensorBatchNorm batchnorml_1(Yl_0,Yl_1,
+            dLdYl_0,dLdYl_1,dLdgamma, dLdbeta, batchsize);*/
+    tensorBatchNorm batchnorml_1(Yl_0,Yl_1,batchsize);
 
     batchnorml_1.batchnorm();
     std::cout<<"Yl_1[0] = "<<std::endl;
     Yl_1[0].printMatrixForm();
     std::cout<<"Yl_1[1] = "<<std::endl;
     Yl_1[1].printMatrixForm();
+
+    batchnorml_1.setGradientTensors(dLdYl_0,dLdYl_1,dLdgamma, dLdbeta);
 
     batchnorml_1.computeGrad();
     std::cout<<"dLdYl_1[0] = "<<std::endl;
@@ -835,7 +852,8 @@ void testv1daffinetransform(){
     tensor3d * dLdWffl_1 = newZeroTensor3dArr(1,2,8,batchsize);
     vector1d * dLdbffl_1 = newZeroVector1dArr(2,batchsize);
 
-    v1dAffineTransform affineffl_1 {Yffl_0, Yffl_1, dLdYffl_0, dLdYffl_1, dLdWffl_1, dLdbffl_1, batchsize};
+    /*v1dAffineTransform affineffl_1 {Yffl_0, Yffl_1, dLdYffl_0, dLdYffl_1, dLdWffl_1, dLdbffl_1, batchsize};*/
+    v1dAffineTransform affineffl_1 {Yffl_0, Yffl_1, batchsize};
 
     affineffl_1.setb(inputbffl_1);
     std::cout<<"affineffl_1.printb() = "<<std::endl;
@@ -843,6 +861,8 @@ void testv1daffinetransform(){
     affineffl_1.setW(inputWffl_1);
     std::cout<<"affineffl_1.printW() = "<<std::endl;
     affineffl_1.printW();
+
+    affineffl_1.setGradientTensors(dLdYffl_0, dLdYffl_1, dLdWffl_1, dLdbffl_1);
 
     affineffl_1.affine(0);
     std::cout<<"Yffl_0[0] = "<<std::endl;
@@ -873,7 +893,8 @@ void testv1dsoftmax(){
     vector1d * dLdyffl_2 = newZeroVector1dArr(3,batchsize);
     dLdyffl_2[0].setVal(inputdLdyffl_2_batchindex0);
 
-    v1dsoftmax softmaxffl_2 {yffl_1,yffl_2,dLdyffl_1,dLdyffl_2,batchsize};
+    /*v1dsoftmax softmaxffl_2 {yffl_1,yffl_2,dLdyffl_1,dLdyffl_2,batchsize};*/
+    v1dsoftmax softmaxffl_2 {yffl_1,yffl_2,batchsize};
 
     softmaxffl_2.softmax(0);
     std::cout<<"yffl_1[0] = "<<std::endl;
@@ -882,9 +903,35 @@ void testv1dsoftmax(){
     yffl_2[0].printVector();
     std::cout<<"answer = 0.090031, 0.244728, 0.665241"<<std::endl;
 
+    softmaxffl_2.setGradientTensors(dLdyffl_1,dLdyffl_2);
+
     softmaxffl_2.computeGrad(0);
     std::cout<<"dLdyffl_2[0] = "<<std::endl;
     dLdyffl_2[0].printVector();
+    std::cout<<"dLdyffl_1[0] = "<<std::endl;
+    dLdyffl_1[0].printVector();
+}
+
+void testv1dcrossentropyloss(){
+    std::vector<double> inputyffl_1_batchindex0 {0.1,0.6,0.3};
+    std::vector<double> inputy_truth_batchindex0 {0,1,0};
+    int batchsize = 2;
+    vector1d * yffl_1 = newZeroVector1dArr(3,batchsize);
+    yffl_1[0].setVal(inputyffl_1_batchindex0);
+    yffl_1[1].setVal(inputyffl_1_batchindex0);
+    vector1d * y_truth = newZeroVector1dArr(3,batchsize);
+    y_truth[0].setVal(inputy_truth_batchindex0);
+    y_truth[1].setVal(inputy_truth_batchindex0);
+    vector1d * dLdyffl_1 = newZeroVector1dArr(3,batchsize);
+
+    v1dCrossEntropyLoss lossl{yffl_1,y_truth,batchsize};
+
+    double avgloss=lossl.avgloss();
+    std::cout<<"avgloss = "<<avgloss<<std::endl;
+
+    lossl.setGradientTensors(dLdyffl_1);
+    lossl.computeGrad(0);
+
     std::cout<<"dLdyffl_1[0] = "<<std::endl;
     dLdyffl_1[0].printVector();
 }
@@ -900,6 +947,7 @@ int main(){
     /*testbatchnorm();*/
     /*testvector1d();*/
     /*testv1daffinetransform();*/
-    testv1dsoftmax();
+    /*testv1dsoftmax();*/
+    testv1dcrossentropyloss();
     return 0;
 }

@@ -8,7 +8,20 @@ struct dim3_t {
     int d;
     int w;
     int h;
+
+
+    void printdim(){
+        std::cout<<d<<" "<<w<<" "<<h;
+    }
 };
+
+bool operator!= (dim3_t & lhval, dim3_t & rhval){
+    if(lhval.d != rhval.d || lhval.w != rhval.w || lhval.h != rhval.h){
+        return true;
+    }else{
+        return false;
+    }
+}
 
 class vector1d;
 
@@ -192,7 +205,7 @@ class tensor4d {
         coldim = {d_prev, w, h};
         arr = new double [d_prev*d_curr*w*h](); /**/
    }
-    void setUniformRandom(int d_prev, int d_curr, int w, int h){
+   void setUniformRandom(int d_prev, int d_curr, int w, int h){
         (*this).setZero(d_prev, d_curr, w, h);
 
         std::mt19937 gen(123);
@@ -212,6 +225,8 @@ class tensor4d {
         }
         }
     }
+    int rowDim(){return rowdim;}
+    dim3_t colDim(){return coldim;}
 
     void printMatrixForm(){
         int rowInx;
@@ -356,6 +371,97 @@ class conv2d{
             B.setUniformRandom(d_curr, 1, 1);
         }
     }
+
+    conv2d(int d_prev, int d_curr, int w_window, int h_window, 
+            tensor3d * Yl_prevarr, tensor3d * Yl_currarr,int stride_=1, bool include_bias=true, int batch_size=10){
+        dim3_t Yprevdim = Yl_prevarr[0].dim();
+        dim3_t Ycurrdim = Yl_currarr[0].dim();
+        if(Ycurrdim.d!=d_curr || Ycurrdim.w!=Yprevdim.w-w_window+1 || Ycurrdim.h!=Yprevdim.h-h_window+1 || d_prev!=Yprevdim.d){
+            std::cerr<<"conv2d: dimensions don\'t match: "<<Ycurrdim.d<<"="<<d_curr<<" , ";
+            std::cerr<<Ycurrdim.w<<"="<<Yprevdim.w<<"-"<<w_window<<"+1 , ";
+            std::cerr<<Ycurrdim.h<<"="<<Yprevdim.h<<"-"<<h_window<<"+1 , ";
+            std::cerr<<d_prev<<" "<<Yprevdim.h<<std::endl;
+            throw 0;
+        }
+
+        WBrowInx = d_curr;
+        WcolInx = {d_prev, w_window, h_window};
+        stride = stride_;
+        includeBias = include_bias;
+        batchSize = batch_size;
+        Yl_prev = Yl_prevarr;
+        Yl_curr = Yl_currarr;
+
+        dLdYl_prev = nullptr;
+        dLdYl_curr = nullptr;
+        dLdW = nullptr;
+        dLdB = nullptr;
+
+        W.setUniformRandom(d_prev, d_curr, w_window, h_window);
+        if(includeBias){
+            B.setUniformRandom(d_curr, 1, 1);
+        }
+
+    }
+
+    void setGradientTensors(tensor3d * dLdY_prevarr, tensor3d * dLdY_currarr, 
+                            tensor4d * dLdW_arr, tensor3d * dLdB_arr=nullptr){
+        int d_curr = WBrowInx;
+        int d_prev = WcolInx.d;
+        int w_window = WcolInx.w;
+        int h_window = WcolInx.h;
+
+        dLdYl_prev = dLdY_prevarr;
+        dLdYl_curr = dLdY_currarr;
+        dLdW = dLdW_arr;
+        dLdB = dLdB_arr;
+        
+
+        {
+        dim3_t gradDim = dLdYl_prev[0].dim();
+        dim3_t tensorDim = Yl_prev[0].dim();
+        if(gradDim != tensorDim){
+            std::cerr<<"conv2d setGradientTensors : dimension of dLdY_prev does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim.d<<" "<<gradDim.w<<" "<<gradDim.h<<std::endl;
+            std::cerr<<"    "<<tensorDim.d<<" "<<tensorDim.w<<" "<<tensorDim.h<<std::endl;
+            throw 0;
+        }
+        }
+        {
+        dim3_t gradDim = dLdYl_curr[0].dim();
+        dim3_t tensorDim = Yl_curr[0].dim();
+        if(gradDim != tensorDim){
+            std::cerr<<"conv2d setGradientTensors : dimension of dLdY_curr does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim.d<<" "<<gradDim.w<<" "<<gradDim.h<<std::endl;
+            std::cerr<<"    "<<tensorDim.d<<" "<<tensorDim.w<<" "<<tensorDim.h<<std::endl;
+            throw 0;           
+        }
+        }
+        {
+        int gradrowDim = dLdW[0].rowDim();
+        dim3_t gradcolDim = dLdW[0].colDim();
+        int tensorrowDim = W.rowDim();
+        dim3_t tensorcolDim = W.colDim();
+        if((gradrowDim != tensorrowDim) || (gradcolDim != tensorcolDim)){
+            std::cerr<<"conv2d setGradientTensors : dimension of dLdW_arr does not match"<<std::endl;
+            std::cerr<<"    "<<gradcolDim.d<<" "<<gradrowDim<<" "<<gradcolDim.w<<" "<<gradcolDim.h<<std::endl;
+            std::cerr<<"    "<<tensorcolDim.d<<" "<<tensorrowDim<<" "<<tensorcolDim.w<<" "<<tensorcolDim.h<<std::endl;
+            throw 0;           
+
+        }
+        }
+        if(includeBias){
+        dim3_t gradDim = dLdB[0].dim();
+        dim3_t tensorDim = B.dim();
+        if(gradDim != tensorDim){
+            std::cerr<<"conv2d setGradientTensors : dimension of dLdB does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim.d<<" "<<gradDim.w<<" "<<gradDim.h<<std::endl;
+            std::cerr<<"    "<<tensorDim.d<<" "<<tensorDim.w<<" "<<tensorDim.h<<std::endl;
+            throw 0;
+        }
+        }
+    }
+
     void setW(std::vector<std::vector<std::vector<std::vector<double>>>> & Wvector){
         int d_prev = WcolInx.d;
         int d_curr = WBrowInx;
@@ -527,6 +633,37 @@ class tensorRelu{
         dLdYl_prev = dLdYprev;
         dLdYl_curr = dLdYcurr;
     }
+    tensorRelu (int d, int w, int h, tensor3d * Yprev, tensor3d * Ycurr, int batch_size){
+        dim = {d,w,h};
+        Yl_prev = Yprev;
+        Yl_curr = Ycurr;
+        dLdYl_prev = nullptr;
+        dLdYl_curr = nullptr;
+    }
+    void setGradientTensors(tensor3d * dLdYprev, tensor3d * dLdYcurr){
+        dLdYl_prev = dLdYprev;
+        dLdYl_curr = dLdYcurr;
+        {
+        dim3_t gradDim = dLdYl_prev[0].dim();
+        dim3_t tensorDim = Yl_prev[0].dim();
+        if(gradDim != tensorDim){
+            std::cerr<<"tensorRelu setGradientTensors : dimension of dLdY_prev does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim.d<<" "<<gradDim.w<<" "<<gradDim.h<<std::endl;
+            std::cerr<<"    "<<tensorDim.d<<" "<<tensorDim.w<<" "<<tensorDim.h<<std::endl;
+            throw 0;
+        }
+        }
+        {
+        dim3_t gradDim = dLdYl_curr[0].dim();
+        dim3_t tensorDim = Yl_curr[0].dim();
+        if(gradDim != tensorDim){
+            std::cerr<<"tensorRelu setGradientTensors : dimension of dLdY_curr does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim.d<<" "<<gradDim.w<<" "<<gradDim.h<<std::endl;
+            std::cerr<<"    "<<tensorDim.d<<" "<<tensorDim.w<<" "<<tensorDim.h<<std::endl;
+            throw 0;
+        }
+        }
+    }
     void relu(int batchInx=0){
         dim3_t YInx;
         for(int z=0;z<dim.d;++z){
@@ -581,6 +718,40 @@ class tensorZeroPad{
         dimcurr = Ycurr[0].dim();
         padWidth = (dimcurr.w - dimprev.w) / 2;
         padHeight = (dimcurr.h - dimprev.h) / 2;
+    }
+    tensorZeroPad(tensor3d * Yprev, tensor3d * Ycurr, int batch_size) : Yl_prev(Yprev), Yl_curr(Ycurr){
+        if(Yprev[0].dim().d != Ycurr[0].dim().d){
+            std::cerr<<"tensorZeroPad: Yprev and Ycurr should have same depth: "<<Yprev[0].dim().d<<" "<<Ycurr[0].dim().d<<std::endl;
+            throw 0;
+        }
+        dimprev = Yprev[0].dim();
+        dimcurr = Ycurr[0].dim();
+        padWidth = (dimcurr.w - dimprev.w) / 2;
+        padHeight = (dimcurr.h - dimprev.h) / 2;
+    }
+    void setGradientTensors(tensor3d * dLdYprev, tensor3d * dLdYcurr){
+        dLdYl_prev = dLdYprev;
+        dLdYl_curr = dLdYcurr;
+        {
+        dim3_t gradDim = dLdYl_prev[0].dim();
+        dim3_t tensorDim = Yl_prev[0].dim();
+        if(gradDim != tensorDim){
+            std::cerr<<"tensorZeroPad setGradientTensors : dimension of dLdYl_prev does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim.d<<" "<<gradDim.w<<" "<<gradDim.h<<std::endl;
+            std::cerr<<"    "<<tensorDim.d<<" "<<tensorDim.w<<" "<<tensorDim.h<<std::endl;
+            throw 0;
+        }
+        }
+        {
+        dim3_t gradDim = dLdYl_curr[0].dim();
+        dim3_t tensorDim = Yl_curr[0].dim();
+        if(gradDim != tensorDim){
+            std::cerr<<"conv2d setGradientTensors : dimension of dLdYl_curr does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim.d<<" "<<gradDim.w<<" "<<gradDim.h<<std::endl;
+            std::cerr<<"    "<<tensorDim.d<<" "<<tensorDim.w<<" "<<tensorDim.h<<std::endl;
+            throw 0;
+        }
+        }
     }
     void zeropad(int batchInx=0){
         dim3_t prevInx;
@@ -639,6 +810,41 @@ class tensorMaxPool{
         Wwindow = dimprev.w / dimcurr.w;
         Hwindow = dimprev.h / dimcurr.h;
         prevMaxPos = newZeroTensor3dArr(dimprev.d, dimprev.w, dimprev.h, batch_size);
+    }
+    tensorMaxPool (tensor3d * Yprev, tensor3d * Ycurr, int batch_size) : Yl_prev(Yprev), Yl_curr(Ycurr), batchSize(batch_size) {
+        dimprev = Yprev[0].dim();
+        dimcurr = Ycurr[0].dim();
+        if(dimprev.w % dimcurr.w != 0 || dimprev.h % dimcurr.h != 0){
+            std::cerr<<"tensorMaxPool: width height of maxpool input is not divisible by that of output: "<<dimprev.w<<" "<<dimprev.h<<" -> "<<dimcurr.w<<" "<<dimcurr.h<<std::endl;
+            throw 0;
+        }
+        Wwindow = dimprev.w / dimcurr.w;
+        Hwindow = dimprev.h / dimcurr.h;
+        prevMaxPos = newZeroTensor3dArr(dimprev.d, dimprev.w, dimprev.h, batch_size);
+    }
+    void setGradientTensors(tensor3d * dLdYprev, tensor3d * dLdYcurr){
+        dLdYl_prev = dLdYprev;
+        dLdYl_curr = dLdYcurr;
+        {
+        dim3_t gradDim = dLdYl_prev[0].dim();
+        dim3_t tensorDim = Yl_prev[0].dim();
+        if(gradDim != tensorDim){
+            std::cerr<<"tensorMaxPool setGradientTensors : dimension of dLdYl_prev does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim.d<<" "<<gradDim.w<<" "<<gradDim.h<<std::endl;
+            std::cerr<<"    "<<tensorDim.d<<" "<<tensorDim.w<<" "<<tensorDim.h<<std::endl;
+            throw 0;
+        }
+        }
+        {
+        dim3_t gradDim = dLdYl_curr[0].dim();
+        dim3_t tensorDim = Yl_curr[0].dim();
+        if(gradDim != tensorDim){
+            std::cerr<<"tensorMaxPool setGradientTensors : dimension of dLdYl_curr does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim.d<<" "<<gradDim.w<<" "<<gradDim.h<<std::endl;
+            std::cerr<<"    "<<tensorDim.d<<" "<<tensorDim.w<<" "<<tensorDim.h<<std::endl;
+            throw 0;
+        }
+        }
     }
 
     void maxpool(int batchInx=0){
@@ -776,6 +982,79 @@ class tensorBatchNorm{
         sum_mus_per_depth.resize(dim.d);
         sum_sigma2s_per_depth.resize(dim.d);
     }
+
+    tensorBatchNorm (tensor3d * Yprev, tensor3d * Ycurr, int batch_size) : Yl_prev(Yprev), Yl_curr(Ycurr), batchSize(batch_size) {
+        dLdYl_prev = nullptr; 
+        dLdYl_curr = nullptr;
+        dLdgamma = nullptr;
+        dLdbeta = nullptr;
+        if(Yprev[0].dim().d != Ycurr[0].dim().d || Yprev[0].dim().w != Ycurr[0].dim().w || Yprev[0].dim().h != Ycurr[0].dim().h){
+            std::cerr<<"tensorBatchNorm : Yprev and Ycurr dimensions do not match: ";
+            std::cerr<<Yprev[0].dim().d<<" "<<Yprev[0].dim().w<<" "<<Yprev[0].dim().h;
+            std::cerr<<" should equal "<<Ycurr[0].dim().d<<" "<<Ycurr[0].dim().w<<" "<<Ycurr[0].dim().h<<std::endl;
+            throw 0;
+        } 
+        dim = Yprev[0].dim();
+        epsilon = 0.0000001;
+        /*gamma.setUniformRandom(dim.d, 1, 1);
+        beta.setUniformRandom(dim.d, 1, 1);*/
+        gamma.setZero(dim.d,1,1);
+        for(int z=0;z<dim.d;++z){dim3_t i={z,0,0};gamma.setVal(i,1);}
+        beta.setZero(dim.d,1,1);
+
+
+        mus_per_depth.resize(dim.d);
+        sigma2s_per_depth.resize(dim.d);
+        sum_mus_per_depth.resize(dim.d);
+        sum_sigma2s_per_depth.resize(dim.d);
+    }
+
+    void setGradientTensors(tensor3d * dLdYprev, tensor3d * dLdYcurr, tensor3d * dLdgamma_, tensor3d * dLdbeta_){
+        dLdYl_prev = dLdYprev; 
+        dLdYl_curr = dLdYcurr;
+        dLdgamma = dLdgamma_;
+        dLdbeta = dLdbeta_;
+        {
+        dim3_t gradDim = dLdYl_prev[0].dim();
+        dim3_t tensorDim = Yl_prev[0].dim();
+        if(gradDim != tensorDim){
+            std::cerr<<"tensorBatchNorm setGradientTensors : dimension of dLdYl_prev does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim.d<<" "<<gradDim.w<<" "<<gradDim.h<<std::endl;
+            std::cerr<<"    "<<tensorDim.d<<" "<<tensorDim.w<<" "<<tensorDim.h<<std::endl;
+            throw 0;
+        }
+        }
+        {
+        dim3_t gradDim = dLdYl_curr[0].dim();
+        dim3_t tensorDim = Yl_curr[0].dim();
+        if(gradDim != tensorDim){
+            std::cerr<<"tensorBatchNorm setGradientTensors : dimension of dLdYl_curr does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim.d<<" "<<gradDim.w<<" "<<gradDim.h<<std::endl;
+            std::cerr<<"    "<<tensorDim.d<<" "<<tensorDim.w<<" "<<tensorDim.h<<std::endl;
+            throw 0;
+        }
+        }
+        {
+        dim3_t gradDim = dLdgamma[0].dim();
+        dim3_t tensorDim = gamma.dim();
+        if(gradDim != tensorDim){
+            std::cerr<<"tensorBatchNorm setGradientTensors : dimension of dLdgamma does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim.d<<" "<<gradDim.w<<" "<<gradDim.h<<std::endl;
+            std::cerr<<"    "<<tensorDim.d<<" "<<tensorDim.w<<" "<<tensorDim.h<<std::endl;
+            throw 0;
+        }
+        }
+        {
+        dim3_t gradDim = dLdbeta[0].dim();
+        dim3_t tensorDim = beta.dim();
+        if(gradDim != tensorDim){
+            std::cerr<<"tensorBatchNorm setGradientTensors : dimension of dLdbeta does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim.d<<" "<<gradDim.w<<" "<<gradDim.h<<std::endl;
+            std::cerr<<"    "<<tensorDim.d<<" "<<tensorDim.w<<" "<<tensorDim.h<<std::endl;
+            throw 0;
+        }
+        }
+    }
     
     void batchnorm(){
         for(int z=0;z<dim.d;++z){
@@ -802,7 +1081,7 @@ class tensorBatchNorm{
                 double y_m = g * x_hat_m + b;
                 Yl_curr[batchInx].setVal(i, y_m);
 
-                std::cout<<"("<<z<<" "<<x<<" "<<y<<") x_m "<<x_m<<" mu "<<mu_B<<" sigma2 "<<sigma2_B<<std::endl;
+                /*std::cout<<"("<<z<<" "<<x<<" "<<y<<") x_m "<<x_m<<" mu "<<mu_B<<" sigma2 "<<sigma2_B<<std::endl;*/
             }
             }
             }
@@ -811,20 +1090,20 @@ class tensorBatchNorm{
             sigma2s_per_depth[z].push_back(sigma2_B);
         }
 
-        std::cout<<"mus_per_depth = "<<std::endl;
+        /*std::cout<<"mus_per_depth = "<<std::endl;*/
         int depth=0;
         for(auto & v: mus_per_depth){
-            std::cout<<"depth "<<depth<<" ";
+            /*std::cout<<"depth "<<depth<<" ";*/
             for(auto & m: v){
-                std::cout<<m<<" ";
+                /*std::cout<<m<<" ";*/
             }
             std::cout<<std::endl;
             ++depth;
         }
     }
     void computeGrad(){
-        std::cout<<"entered computeGrad()"<<std::endl;
-        std::cout<<"create dLdx_hat"<<std::endl;
+        /*std::cout<<"entered computeGrad()"<<std::endl;*/
+        /*std::cout<<"create dLdx_hat"<<std::endl;*/
 
         std::vector<std::vector<std::vector<double>>> dLdx_hat;
         dLdx_hat.resize(batchSize);
@@ -835,19 +1114,7 @@ class tensorBatchNorm{
         }
         }
 
-        /*std::cout<<"...success"<<std::endl<<"create dLdx_hat"<<std::endl;
-
-        std::vector<std::vector<std::vector<double>>> dLdx;
-        dLdx.resize(batchSize);
-        for(auto & v1 : dLdx){
-        v1.resize(dim.w);
-        for(auto & v2 : v1){
-        v2.resize(dim.h);
-        }
-        }
-
-
-        std::cout<<"...success"<<std::endl;*/
+        /*std::cout<<"...success"<<std::endl*/
 
         for(int z=0;z<dim.d;++z){
 
@@ -859,10 +1126,10 @@ class tensorBatchNorm{
 
             double dLdx_hat_sum=0;
 
-            std::cout<<"z="<<z<<" g="<<g<<" b="<<b<<" mu_B="<<mu_B<<" sigma2_B="<<sigma2_B<<std::endl;
+            /*std::cout<<"z="<<z<<" g="<<g<<" b="<<b<<" mu_B="<<mu_B<<" sigma2_B="<<sigma2_B<<std::endl;*/
 
             /* compute dLdx_hat */
-            std::cout<<"start compute dLdx_hat z="<<z<<std::endl;
+            /*std::cout<<"start compute dLdx_hat z="<<z<<std::endl;*/
             for(int batchInx=0;batchInx<batchSize;++batchInx){
             for(int xinx=0;xinx<dim.w;++xinx){
             for(int yinx=0;yinx<dim.h;++yinx){
@@ -870,17 +1137,17 @@ class tensorBatchNorm{
                 double dLdx_hat_val = dLdYl_curr[batchInx](i) * g;
                 dLdx_hat[batchInx][xinx][yinx] = dLdx_hat_val;
                 dLdx_hat_sum += dLdx_hat_val;
-                std::cout<<"    dLdx_hat["<<batchInx<<"]["<<xinx<<"]["<<yinx<<"] = "<<dLdx_hat[batchInx][xinx][yinx]<<" = "<<dLdx_hat_val<<std::endl;
+                /*std::cout<<"    dLdx_hat["<<batchInx<<"]["<<xinx<<"]["<<yinx<<"] = "<<dLdx_hat[batchInx][xinx][yinx]<<" = "<<dLdx_hat_val<<std::endl;*/
             }
             }
             }
-            std::cout<<"    dLdx_hat_sum = "<<dLdx_hat_sum<<std::endl;
-            std::cout<<"...success"<<std::endl;
+            /*std::cout<<"    dLdx_hat_sum = "<<dLdx_hat_sum<<std::endl;
+            std::cout<<"...success"<<std::endl;*/
 
             /* compute dLdsigma2 */
-            std::cout<<"start compute dLdsigma2 z="<<z<<std::endl;
+            /*std::cout<<"start compute dLdsigma2 z="<<z<<std::endl;*/
             double dLdsigma2 = 0;
-            std::cout<<"    startForLoop(batchInx,xinx,yinx)"<<std::endl;
+            /*std::cout<<"    startForLoop(batchInx,xinx,yinx)"<<std::endl;*/
             for(int batchInx=0;batchInx<batchSize;++batchInx){
             for(int xinx=0;xinx<dim.w;++xinx){
             for(int yinx=0;yinx<dim.h;++yinx){
@@ -895,13 +1162,13 @@ class tensorBatchNorm{
             }
             }
             }
-            std::cout<<"    dLdsigma2 outside forloop dLdsigma2sum = "<<dLdsigma2<<std::endl;
-            std::cout<<"    sigma2_B + epsilon = "<<sigma2_B + epsilon<<std::endl;
+            /*std::cout<<"    dLdsigma2 outside forloop dLdsigma2sum = "<<dLdsigma2<<std::endl;
+            std::cout<<"    sigma2_B + epsilon = "<<sigma2_B + epsilon<<std::endl;*/
             dLdsigma2 = dLdsigma2 * (-0.5) * std::pow(sigma2_B + epsilon, -1.5);
-            std::cout<<"...success dLdsigma2 = "<<dLdsigma2<<std::endl;
+            /*std::cout<<"...success dLdsigma2 = "<<dLdsigma2<<std::endl;*/
 
             /* compute dLdmu */
-            std::cout<<"start compute dLdmu z="<<z<<std::endl;
+            /*std::cout<<"start compute dLdmu z="<<z<<std::endl;*/
             double dLdmu = dLdx_hat_sum / std::sqrt(sigma2_B + epsilon) * (-1);
             /* commented below tmp = 0 */
             /*{
@@ -920,18 +1187,18 @@ class tensorBatchNorm{
             std::cout<<"    tmp = "<<tmp<<std::endl;
             dLdmu += tmp;
             }*/
-            std::cout<<"...success dLdmu = "<<dLdmu<<std::endl;
+            /*std::cout<<"...success dLdmu = "<<dLdmu<<std::endl;*/
 
             /* compute dLdx */
-            std::cout<<"start compute dLdx z="<<z<<std::endl;
+            /*std::cout<<"start compute dLdx z="<<z<<std::endl;*/
             for(int batchInx=0;batchInx<batchSize;++batchInx){
             for(int xinx=0;xinx<dim.w;++xinx){
             for(int yinx=0;yinx<dim.h;++yinx){
-                std::cout<<"    batchInx "<<batchInx<<" xinx "<<xinx<<" yinx "<<yinx<<std::endl;
+                /*std::cout<<"    batchInx "<<batchInx<<" xinx "<<xinx<<" yinx "<<yinx<<std::endl;*/
                 dim3_t i={z,xinx,yinx};
                 double x = Yl_prev[batchInx](i);
-                std::cout<<"    x = "<<x<<" dLdx_hat = "<<dLdx_hat[batchInx][xinx][yinx]<<std::endl;
-                std::cout<<"    m = "<<batchSize * dim.w * dim.h<<std::endl;
+                /*std::cout<<"    x = "<<x<<" dLdx_hat = "<<dLdx_hat[batchInx][xinx][yinx]<<std::endl;
+                std::cout<<"    m = "<<batchSize * dim.w * dim.h<<std::endl;*/
                 double dLdx = dLdx_hat[batchInx][xinx][yinx] / std::sqrt(sigma2_B + epsilon) 
                             + dLdsigma2 * (x - mu_B) * 2 / (batchSize * dim.w * dim.h)
                             + dLdmu / (batchSize * dim.w * dim.h);
@@ -940,7 +1207,7 @@ class tensorBatchNorm{
             }
             }
             }
-            std::cout<<"...success"<<std::endl;
+            /*std::cout<<"...success"<<std::endl;*/
 
             /* compute dLdgamma */
             {
@@ -1222,6 +1489,62 @@ class v1dAffineTransform{
         W.setUniformRandom(1,rows,cols);
         b.setUniformRandom(rows);
     }
+    v1dAffineTransform (vector1d * y_prev, vector1d * y_curr, int batch_size) : x(y_prev), y(y_curr), batchSize(batch_size) {
+        rows = y_curr[0].size;
+        cols = y_prev[0].size;
+
+        W.setUniformRandom(1,rows,cols);
+        b.setUniformRandom(rows);
+    }
+
+
+    void setGradientTensors(vector1d * dLdy_prev, vector1d * dLdy_curr, tensor3d * dLdW_curr, vector1d * dLdb_curr){
+        dLdx = dLdy_prev;
+        dLdy = dLdy_curr;
+        dLdW = dLdW_curr;
+        dLdb = dLdb_curr;
+        {
+        int gradDim = dLdy_prev[0].size;
+        int tensorDim = x[0].size;
+        if(gradDim != tensorDim){
+            std::cerr<<"v1affineTransform setGradientTensors : dimension of dLdy_prev does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim<<std::endl;
+            std::cerr<<"    "<<tensorDim<<std::endl;
+            throw 0;
+        }
+        }
+        {
+        int gradDim = dLdy_curr[0].size;
+        int tensorDim = y[0].size;
+        if(gradDim != tensorDim){
+            std::cerr<<"v1affineTransform setGradientTensors : dimension of dLdy_curr does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim<<std::endl;
+            std::cerr<<"    "<<tensorDim<<std::endl;
+            throw 0;
+        }
+        }
+        {
+        dim3_t gradDim = dLdW[0].dim();
+        dim3_t tensorDim = W.dim();
+        if(gradDim != tensorDim){
+            std::cerr<<"v1affineTransform setGradientTensors : dimension of dLdW does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim.d<<" "<<gradDim.w<<" "<<gradDim.h<<std::endl;
+            std::cerr<<"    "<<tensorDim.d<<" "<<tensorDim.w<<" "<<tensorDim.h<<std::endl;
+            throw 0;
+        }
+        }
+        {
+        int gradDim = dLdb[0].size;
+        int tensorDim = b.size;
+        if(gradDim != tensorDim){
+            std::cerr<<"v1affineTransform setGradientTensors : dimension of dLdb does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim<<std::endl;
+            std::cerr<<"    "<<tensorDim<<std::endl;
+            throw 0;
+        }
+        }
+    }
+
 
     void setW(std::vector<std::vector<std::vector<double>>> & Wvector){
         W.setVal(1,rows,cols,Wvector);
@@ -1298,6 +1621,38 @@ class v1dsoftmax {
         size = z[0].size;
         
     }
+    v1dsoftmax (vector1d * y_prev, vector1d * y_curr, int batch_size) :
+                 z(y_prev), y(y_curr), batchSize(batch_size) {
+        if(y_prev[0].size != y_curr[0].size){
+            std::cerr<<"v1dsoftmax constructor: y_prev and y_curr should have same size: "<<y_prev[0].size<<" "<<y_curr[0].size<<std::endl;
+        }
+        size = z[0].size;
+    }
+
+    void setGradientTensors(vector1d * dLdy_prev, vector1d * dLdy_curr){
+        dLdz = dLdy_prev;
+        dLdy = dLdy_curr;
+        {
+        int gradDim = dLdz[0].size;
+        int tensorDim = z[0].size;
+        if(gradDim != tensorDim){
+            std::cerr<<"v1dsoftmax setGradientTensors : dimension of dLdz does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim<<std::endl;
+            std::cerr<<"    "<<tensorDim<<std::endl;
+            throw 0;
+        }
+        }
+        {
+        int gradDim = dLdy[0].size;
+        int tensorDim = y[0].size;
+        if(gradDim != tensorDim){
+            std::cerr<<"v1dsoftmax setGradientTensors : dimension of dLdy does not match"<<std::endl;
+            std::cerr<<"    "<<gradDim<<std::endl;
+            std::cerr<<"    "<<tensorDim<<std::endl;
+            throw 0;
+        }
+        }
+    }
 
     void softmax(int batchInx){     /* safe softmax */
         double maxz_val= z[batchInx].max();
@@ -1311,11 +1666,79 @@ class v1dsoftmax {
         }
     }
 
-    void computeGrad(int batchInx){     /* dsoftmax(z)/dz = softmaz(z) * (1 - softmax(z)) */
+    void computeGrad(int batchInx){     /* dsoftmax(z_l)/dz_i = softmaz(z_l) * (delta(l,i) - softmax(z_i)) */
         for(int i=0;i<size;++i){
             double yVal = y[batchInx](i);
-            dLdz[batchInx].setVal(i, dLdy[batchInx](i) * yVal * (1 - yVal));
+            double tmp=0;
+            for(int l=0;l<size;++l){
+                if(l == i){
+                    tmp += dLdy[batchInx](l) * yVal * (1 - yVal);
+                }else{
+                    tmp += dLdy[batchInx](l) * (-1) * y[batchInx](l) * yVal;
+                }
+            }
+            dLdz[batchInx].setVal(i, tmp);
         }
     }
     
+};
+
+class v1dCrossEntropyLoss{
+    vector1d * y;
+    vector1d * truth;
+    vector1d * dLdy;
+    int batchSize;
+    public:
+    v1dCrossEntropyLoss(vector1d * y_output, vector1d * y_truth, vector1d * dLdy_output, int batch_size) : 
+                        y(y_output), truth(y_truth), dLdy(dLdy_output), batchSize(batch_size) {
+        if(y[0].size != truth[0].size){
+            std::cerr<<"v1dCrossEntropyLoss constructor: y and truth need to have same dimensions: "<<std::endl;
+            std::cerr<<"    "<<y[0].size<<" != "<<truth[0].size<<std::endl;
+            throw 0;
+        }
+    }
+    v1dCrossEntropyLoss(vector1d * y_output, vector1d * y_truth, int batch_size) : 
+                        y(y_output), truth(y_truth), batchSize(batch_size) {
+        if(y[0].size != truth[0].size){
+            std::cerr<<"v1dCrossEntropyLoss constructor: y and truth need to have same dimensions: "<<std::endl;
+            std::cerr<<"    "<<y[0].size<<" != "<<truth[0].size<<std::endl;
+            throw 0;
+        }
+    }
+    void setGradientTensors(vector1d * dLdy_output){
+        dLdy = dLdy_output;
+        if(y[0].size != dLdy[0].size){
+            std::cerr<<"v1dCrossEntropyLoss setGradientTensors : dLdy and y have different dimensions: "<<std::endl;
+            std::cerr<<"    "<<dLdy[0].size<<" != "<<y[0].size<<std::endl;
+            throw 0;
+        }
+    }
+
+    double avgloss(){       /* absolute value of loss average over categories and batch */
+        int dimSize = y[0].size;
+        double averageloss=0;
+        for(int batchInx=0;batchInx<batchSize;++batchInx){
+            double tmp=0;
+            for(int i=0;i<dimSize;++i){
+                tmp += truth[batchInx](i) * std::log(y[batchInx](i));
+            }
+            tmp /= dimSize;
+            averageloss += tmp;
+        }
+        averageloss /= batchSize;
+        return (-1) * averageloss;
+    }
+
+    void computeGrad(int batchInx){
+        int sizeVal = dLdy[0].size;
+        for(int i=0;i<sizeVal;++i){
+            double tVal = truth[batchInx](i);
+            double yVal = y[batchInx](i);
+            if(tVal == 0.0){
+                dLdy[batchInx].setVal(i, 0);
+            }else{
+                dLdy[batchInx].setVal(i, (-1) * tVal / yVal);
+            }
+        }
+    }
 };
