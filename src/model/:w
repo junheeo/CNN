@@ -1,0 +1,92 @@
+#include "convolution2.hpp"
+#include <iostream>
+#include <fstream>
+#include <filesystem>
+
+struct filebuffer{
+    unsigned char * arr;
+    size_t length;
+};
+
+filebuffer readFileData(const std::string& name) {
+    std::filesystem::path inputFilePath{name};
+    size_t length = std::filesystem::file_size(inputFilePath);
+    if (length == 0) {
+        std::cerr<<"File "<<name<<" is empty"<<std::endl;
+        throw 1;
+    }
+    unsigned char * pbuffer = new unsigned char [length];
+    std::ifstream inputFile(name, std::ios_base::binary);
+    inputFile.read((char*)pbuffer, length);
+    inputFile.close();
+    filebuffer buffer = {pbuffer, length};
+    return buffer;
+}
+
+struct imagedata_t {
+    double * arr;
+    size_t length;
+    size_t inx;
+};
+
+void copyFromInx(imagedata_t imageData, filebuffer buffer){
+    size_t imgCurrInx = imageData.inx;
+    for(int i=0;i<buffer.length;++i){
+        double imageVal = (double) ((unsigned int) buffer.arr[i]); 
+        imageData.arr[imgCurrInx] = imageVal;
+        ++imgCurrInx;
+    }
+    imageData.inx = imgCurrInx;
+}
+
+/*
+data_batch_1.bin
+data_batch_2.bin
+data_batch_3.bin
+data_batch_4.bin
+data_batch_5.bin
+test_batch.bin
+*/
+void setTrainData(imagedata_t & trainData){
+    /* 50000 images
+     * 1 value for class
+     * 3x32x32 size of image 
+     * 50000x3073 = 153650000 */
+    trainData.arr = new double [153650000];
+    trainData.length = 153650000;
+    trainData.inx = 0;
+    std::array<std::string, 5> fileNames = 
+        {"data_batch_1.bin",
+        "data_batch_2.bin",
+        "data_batch_3.bin",
+        "data_batch_4.bin",
+        "data_batch_5.bin"};
+    for(auto & fileName : fileNames){
+        filebuffer buffer;
+        buffer = readFileData(fileName);
+        copyFromInx(trainData, buffer);
+        delete [] buffer.arr;
+    }
+}
+void setTestData(imagedata_t & testData){
+    /* 10000 images
+     * 1value for class
+     * 3*32*32 size of image
+     * 10000*3073 = 30730000 */
+    testData.arr = new double [30730000];
+    testData.length = 30730000;
+    testData.inx=0;
+    std::string fileName = "test_batch_bin";
+    filebuffer buffer;
+    buffer = readFileData(fileName);
+    copyFromInx(testData, buffer);
+    delete [] buffer.arr;
+}
+
+int main(){
+    imagedata_t trainData;
+    imagedata_t testData;
+    setTrainData(trainData);
+    setTestData(testData);
+    return 0;
+}

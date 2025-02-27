@@ -616,6 +616,46 @@ class conv2d{
         }
 
     }
+    
+    void batchGD(double learnrate){
+        /* int WBrowInx;
+         * dim3_t WcolInx; */
+        /* W have dimension (WBrowInx x WcolInx) */
+        /* B have dimension (WBrowInx x 1x1) */
+        /* set dLdW[0] as the batchwise average gradient */
+        for(int z_curr=0;z_curr<WBrowInx;++z_curr){
+            int rowInx = z_curr;
+        for(int z_prev=0;z_prev<WcolInx.d;++z_prev){
+        for(int x=0;x<WcolInx.w;++x){
+        for(int y=0;y<WcolInx.h;++y){
+            dim3_t colInx = {z_prev,x,y};
+            double tmp;
+            for(int batchInx=0;batchInx<batchSize;++batchInx){
+                tmp += dLdW[batchInx](rowInx, colInx);
+            }
+            dLdW[0].setVal(rowInx, colInx, tmp/batchSize);
+
+            /* update W = W - learnrate * dLdW[0] */
+            W.setVal(rowInx, colInx, W(rowInx,colInx) - learnrate * dLdW[0](rowInx,colInx));
+        }
+        }
+        }
+        }
+        if(includeBias){
+            /* set dLdB[0] as the batchwise average gradient */
+            for(int z_curr=0;z_curr<WBrowInx;++z_curr){
+                dim3_t BInx = {z_curr,0,0};
+                double tmp=0;
+                for(int batchInx=0;batchInx<batchSize;++batchInx){
+                    tmp += dLdB[batchInx](BInx);
+                }
+                dLdB[0].setVal(BInx, tmp/batchSize);
+
+                /* update B = B - learnrate * dLdB[0] */
+                B.setVal(BInx, B(BInx) - learnrate * dLdB[0](BInx));
+            }
+        }
+    }
 };
 
 class tensorRelu{
@@ -1280,6 +1320,31 @@ class tensorBatchNorm{
             }
         }
     }
+
+    void batchGD(double learnrate){
+        /* beta, gamma have dimension (dim.d x 1 x 1) */
+        /* set dLdbeta[0] as the batchwise average gradient */
+        /* set dLdgamma[0] as the batchwise average gradient */
+        double tmpBeta=0;
+        double tmpGamma=0;
+        dim3_t zInx;
+        for(int z=0;z<dim.d;++z){
+            zInx = {z,0,0};
+            for(int batchInx=0;batchInx<batchSize;++batchInx){
+                tmpBeta += dLdbeta[batchInx](zInx);
+                tmpGamma += dLdgamma[batchInx](zInx);
+            }
+            dLdbeta[0].setVal(zInx, tmpBeta/batchSize);
+            dLdgamma[0].setVal(zInx, tmpGamma/batchSize);
+            tmpBeta=0;
+            tmpGamma=0;
+
+            /* update beta = beta - learnrate * dLdbeta[0] */
+            /* update gamma = gamma - learnrate * dLdgamma[0] */
+            beta.setVal(zInx, beta(zInx) - learnrate * dLdbeta[0](zInx));
+            gamma.setVal(zInx, gamma(zInx) - learnrate * dLdgamma[0](zInx));
+        }
+    }
 };
 
 class vector1d {
@@ -1601,6 +1666,42 @@ class v1dAffineTransform{
         /* compute dLdb */
         for(int r=0;r<rows;++r){
             dLdb[batchInx].setVal(r, dLdy[batchInx](r));
+        }
+    }
+
+    void batchGD(double learnrate){
+        if(batchSize>2){
+            double tmp=0;
+            dim3_t WInx;
+            /* dLdW[0] is the batchwise average gradient */
+            for(int r=0;r<rows;++r){
+            for(int c=0;c<cols;++c){
+                WInx = {0,r,c};
+            for(int batchInx=0;batchInx<batchSize;++batchInx){
+                tmp += dLdW[batchInx](WInx);
+            }
+                dLdW[0].setVal(WInx, tmp/batchSize);
+                tmp=0;
+            }
+            }
+            /* dLdb[0] is the batchwise average gradient */
+            for(int r=0;r<rows;++r){
+            for(int batchInx=0;batchInx<batchSize;++batchInx){
+                tmp += dLdb[batchInx](r);
+            }
+                dLdb[0].setVal(r, tmp/batchSize);
+                tmp=0;
+            }
+        }
+        /* update W := W - learnrate * dLdW  */
+        /* update b := b - learnrate * dLdb */
+        dim3_t WInx;
+        for(int r=0;r<rows;++r){
+        for(int c=0;c<cols;++c){
+            WInx = {0,r,c};
+            W.setVal(WInx, W(WInx) - learnrate * dLdW[0](WInx));
+        }
+            b.setVal(r, b(r) - learnrate * dLdb[0](r));
         }
     }
 };

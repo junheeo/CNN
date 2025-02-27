@@ -1,0 +1,17 @@
+add_executable(Train_CNN train.cpp)
+target_include_directories(Train_CNN PRIVATE convolution)
+target_link_libraries(Train_CNN PRIVATE CNN_Lib2)
+
+
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data_batch_1.bin
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data_batch_2.bin
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data_batch_3.bin
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data_batch_4.bin
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/data_batch_5.bin
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/test_batch.bin
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
