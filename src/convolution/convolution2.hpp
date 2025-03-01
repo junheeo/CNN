@@ -56,7 +56,7 @@ class tensor3d {
         setVal(d,w,h,inputVector);
     }
     ~tensor3d(){                                    /* destructor */
-        if(arr != nullptr){delete arr; arrdim = {0,0,0};}
+        if(arr != nullptr){delete [] arr; arrdim = {0,0,0};}
     }
     
     double operator() (dim3_t colInx){
@@ -160,7 +160,7 @@ class tensor4d {
         setZero(d_prev, d_curr, w, h);
     }
     ~tensor4d(){                                        /* destructor */
-        if(arr != nullptr){delete arr; rowdim = 0; coldim = {0,0,0};}
+        if(arr != nullptr){delete [] arr; rowdim = 0; coldim = {0,0,0};}
     }
 
     double operator() (int rowInx, dim3_t colInx){
