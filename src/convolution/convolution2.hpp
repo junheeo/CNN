@@ -31,7 +31,7 @@ class tensor3d {
     dim3_t arrdim;
     int dim3ToarrInx (dim3_t colInx){
         if(colInx.d>=arrdim.d || colInx.w>=arrdim.w || colInx.h>=arrdim.h){
-            std::cerr<<"tensor3d index out of range : "<<colInx.d<<" "<<colInx.w<<" "<<colInx.h<<std::endl;
+            std::cerr<<"tensor3d dim3ToarrInx() index out of range : "<<colInx.d<<" "<<colInx.w<<" "<<colInx.h<<std::endl;
             throw 0;
         }
         int z = colInx.d;
@@ -44,7 +44,7 @@ class tensor3d {
         int x = (i % (arrdim.w * arrdim.h)) / arrdim.h;
         int y = (i % (arrdim.w * arrdim.h)) % arrdim.h;
         if(z>=arrdim.d || x>=arrdim.w || y>=arrdim.h){
-            std::cerr<<"tensor3d double * arr index out of range: "<<i<<" : "<<x<<" "<<y<<" "<<z<<std::endl;
+            std::cerr<<"tensor3d double * arr index out of range: "<<i<<" : "<<z<<" "<<x<<" "<<y<<std::endl;
         }
         dim3_t dim3Inx = {z,x,y};
         return dim3Inx;
@@ -60,13 +60,24 @@ class tensor3d {
     }
     
     double operator() (dim3_t colInx){
-        return arr[dim3ToarrInx(colInx)];
+        try{
+            double val = arr[dim3ToarrInx(colInx)];
+            return val;
+        }catch(int errorInt){
+            std::cerr<<"tensor3d operator(): index out of range"<<std::endl;
+            throw errorInt;
+        }
     }
     void setVal (dim3_t colInx, double val){
         if(arr == nullptr){
             std::cerr<<"tensor3d: (private)arr is not dyn allocated"<<std::endl;
         }
-        arr[dim3ToarrInx(colInx)] = val;
+        try{
+            arr[dim3ToarrInx(colInx)] = val;
+        }catch(int errorInt){
+            std::cerr<<"tensor3d setVal(dim3_t, val) : index out of range"<<std::endl;
+            throw errorInt;
+        }
     }
     void setVal (int d, int w, int h, std::vector<std::vector<std::vector<double>>> & inputVector){
         if(arr != nullptr){
@@ -295,6 +306,7 @@ class conv2d{
                                                     startInx[batchInx] = {0,0,0};
                                                 }
         } 
+        ~X_prev_t(){delete [] startInx;}
         void setStart(dim3_t start_Inx, int batchInx) {startInx[batchInx] = {start_Inx.d, start_Inx.w, start_Inx.h};}
         double operator() (dim3_t colInx, int batchInx){
             dim3_t Y_prev_inx;
@@ -894,6 +906,10 @@ class tensorMaxPool{
         int yprev;
         dim3_t prevInx;
         dim3_t currInx;
+        /*std::cout<<std::endl;
+        std::cout<<"    maxpool(): Yl_prev<"<<dimprev.d<<","<<dimprev.w<<","<<dimprev.h<<">"<<std::endl;
+        std::cout<<"               Yl_curr<"<<dimcurr.d<<","<<dimcurr.w<<","<<dimcurr.h<<">"<<std::endl;
+        std::cout<<"               Wwindow,Hwindow = "<<Wwindow<<","<<Hwindow<<std::endl;*/
         for(int zcurr=0;zcurr<dimcurr.d;++zcurr){
         for(int xcurr=0;xcurr<dimcurr.w;++xcurr){
         for(int ycurr=0;ycurr<dimcurr.h;++ycurr){
@@ -901,14 +917,26 @@ class tensorMaxPool{
             xprev = xcurr * Wwindow;
             yprev = ycurr * Hwindow;
             prevInx = {zprev, xprev, yprev};
-            maxVal = Yl_prev[batchInx](prevInx);
+            try{
+                maxVal = Yl_prev[batchInx](prevInx);
+            } catch (int errorInt){
+                std::cout<<"    maxpool(): * accessing Yl_prev["<<batchInx<<"]({"<<zprev<<","<<xprev<<","<<yprev<<"})"<<std::endl;
+                throw errorInt;
+            }
             int zmax,xmax,ymax;
             zmax = zprev;
+            xmax = xprev;
+            ymax = yprev;
             int tmpVal;
             for(int i=0;i<Wwindow;++i){
             for(int j=0;j<Hwindow;++j){
                 prevInx = {zprev, xprev+i, yprev+j};
+                try{
                 tmpVal = Yl_prev[batchInx](prevInx);
+                }catch(int errorInt){
+                std::cout<<"    maxpool(): ** accessing Yl_prev["<<batchInx<<"]({"<<zprev<<","<<xprev+i<<","<<yprev+j<<"})"<<std::endl;
+                throw errorInt;
+                }
                 if(maxVal < tmpVal){
                     maxVal = tmpVal;
                     xmax = xprev+i;
@@ -917,9 +945,18 @@ class tensorMaxPool{
             }
             }
             currInx = {zcurr, xcurr, ycurr};
+            try{
             Yl_curr[batchInx].setVal(currInx, maxVal);
+            }catch(int errorInt){
+            std::cout<<"    maxpool(): *** accessing Yl_curr["<<batchInx<<"]({"<<zcurr<<","<<xcurr<<","<<ycurr<<"})"<<std::endl;
+            throw errorInt;
+            }
             dim3_t maxInx = {zmax,xmax,ymax};
+            try{
             prevMaxPos[batchInx].setVal(maxInx,1);
+            }catch(int errorInt){
+            std::cout<<"    maxpool(): ****accessing prevMaxPos["<<batchInx<<"]({"<<zmax<<","<<xmax<<","<<ymax<<"})"<<std::endl;
+            }
         }
         }
         }
@@ -1137,7 +1174,7 @@ class tensorBatchNorm{
             for(auto & m: v){
                 /*std::cout<<m<<" ";*/
             }
-            std::cout<<std::endl;
+            /*std::cout<<std::endl;*/
             ++depth;
         }
     }
@@ -1284,10 +1321,8 @@ class tensorBatchNorm{
 
         for(int z=0;z<dim.d;++z){
             double sum_mus = std::accumulate(mus_per_depth[z].begin(), mus_per_depth[z].end(), 0.0);
-            mus_per_depth[z].clear();
             sum_mus_per_depth[z] = sum_mus;
             double sum_sigma2s = std::accumulate(sigma2s_per_depth[z].begin(), sigma2s_per_depth[z].end(), 0.0);
-            sigma2s_per_depth[z].clear();
             sum_sigma2s_per_depth[z] = sum_sigma2s;
         }
         
@@ -1299,14 +1334,22 @@ class tensorBatchNorm{
          * where
          * E = Expected_Value(mu_(batchInx,x,y))
          * Var = m / (m-1) * Expected_Value(sigma2_(batchInx,x,y))
+         * where
+         * effective batch size m = batchSize * dim.w * dim.h
          *
          * then batch normalization during inference is
          * y = gamma * x_hat + beta
          *   = gamma/sqrt(Var+epsilon) * x + (beta - gamma*E/std::sqrt(Var+epsilon))
          * */
         for(int z=0;z<dim.d;++z){
-            double E = sum_mus_per_depth[z] / (dim.w * dim.h);
-            double Var = sum_sigma2s_per_depth[z] / (dim.w * dim.h - 1);
+            double E = sum_mus_per_depth[z] / (mus_per_depth[z].size());
+            double Var = sum_sigma2s_per_depth[z] / mus_per_depth[z].size() * ((batchSize * dim.w * dim.h) / (batchSize * dim.w * dim.h - 1));
+
+            std::cout<<"E = "<<E<<" = "<<sum_mus_per_depth[z]<<" / "<<mus_per_depth[z].size();
+            std::cout<<"Var = "<<Var<<" = "<<sum_sigma2s_per_depth[z]<<" / "<<mus_per_depth[z].size()<<" * "<<(batchSize * dim.w * dim.h)<<" / "<<(batchSize * dim.w * dim.h - 1)<<std::endl;
+
+            mus_per_depth[z].clear();
+            sigma2s_per_depth[z].clear();
 
             dim3_t zInx = {z,0,0};
             double a = gamma(zInx) / std::sqrt(Var + epsilon);
@@ -1755,7 +1798,7 @@ class v1dsoftmax {
         }
     }
 
-    void softmax(int batchInx){     /* safe softmax */
+    void softmax(int batchInx=0){     /* safe softmax */
         double maxz_val= z[batchInx].max();
         double sum_e_val=0;
         for(int j=0;j<size;++j){
@@ -1767,7 +1810,7 @@ class v1dsoftmax {
         }
     }
 
-    void computeGrad(int batchInx){     /* dsoftmax(z_l)/dz_i = softmaz(z_l) * (delta(l,i) - softmax(z_i)) */
+    void computeGrad(int batchInx=0){     /* dsoftmax(z_l)/dz_i = softmaz(z_l) * (delta(l,i) - softmax(z_i)) */
         for(int i=0;i<size;++i){
             double yVal = y[batchInx](i);
             double tmp=0;
@@ -1830,7 +1873,21 @@ class v1dCrossEntropyLoss{
         return (-1) * averageloss;
     }
 
-    void computeGrad(int batchInx){
+    double loss(){
+        int dimSize = y[0].size;
+        double averageloss=0;
+
+        double tmp=0;
+        for(int i=0;i<dimSize;++i){
+            tmp += truth[0](i) * std::log(y[0](i));
+        }
+        tmp /= dimSize;
+        averageloss += tmp;
+
+        return (-1) * averageloss;
+    }
+
+    void computeGrad(int batchInx=0){
         int sizeVal = dLdy[0].size;
         for(int i=0;i<sizeVal;++i){
             double tVal = truth[batchInx](i);
