@@ -936,6 +936,156 @@ void testv1dcrossentropyloss(){
     dLdyffl_1[0].printVector();
 }
 
+void saveloadtensorvector(){
+    /*testing part 1: tensor3d, tensor4d, vector1d, conv2d*/
+    {
+    /* 3 */
+    std::vector<double> someVector {0.1, 0.2, 0.3};
+
+    /* 2x3x4 */
+    std::vector<std::vector<std::vector<double>>> inputYl_0_batchinx1 {
+    {
+        {1.2, 1.3, 1.4, 1.5},
+        {1.6, 1.7, 1.8, 1.9},
+        {2.0, 2.1, 2.2, 2.3}
+    },
+    {
+        {2.4, 2.5, 2.6, 2.7}, 
+        {2.8, 2.9, 3.0, 3.1}, 
+        {3.2, 3.3, 3.4, 3.5}
+    }
+    };
+
+    /* 2x4x2x3 */
+    std::vector<std::vector<std::vector<std::vector<double>>>> inputWl_1 {
+        {
+            {
+                {5,6,7},
+                {8,9,10}
+            },
+            {
+                {17,18,19},
+                {20,21,22}
+            },
+            {
+                {29,30,31},
+                {32,33,34}
+            },
+            {
+                {41,42,43},
+                {44,45,46}
+            }
+        },
+        {
+            {
+                {11,12,13},
+                {14,15,16}
+            },
+            {
+                {23,24,25},
+                {26,27,28}
+            },
+            {
+                {35,36,37},
+                {38,39,40}
+            },
+            {
+                {47,48,49},
+                {50,51,52}
+            }
+        }
+    };
+    /* 4x1x1 */
+    std::vector<std::vector<std::vector<double>>> inputBl_1 {{{0.1}},{{0.2}},{{0.3}},{{0.4}}};
+
+    {
+    std::cout<<std::endl<<"Testing tensor4d, tensor3d, vector1d savefile and loadfile"<<std::endl;
+
+    tensor4d t4_1 (2,4,2,3,inputWl_1);
+    std::cout<<"t4_1 = "<<std::endl;
+    t4_1.printMatrixForm();
+    t4_1.saveToFile("t4_1_vals.txt");
+    tensor4d t4_2 (2,4,2,3);
+    t4_2.loadFromFile("t4_1_vals.txt");
+    std::cout<<"t4_2 = "<<std::endl;
+    t4_2.printMatrixForm(); std::cout<<std::endl;
+
+    tensor3d t3_1 (4,1,1,inputBl_1);
+    std::cout<<"t3_1 = "<<std::endl;
+    t3_1.printMatrixForm();
+    t3_1.saveToFile("t3_1_vals.txt");
+    tensor3d t3_2 (4,1,1);
+    t3_2.loadFromFile("t3_1_vals.txt");
+    std::cout<<"t3_2 = "<<std::endl;
+    t3_2.printMatrixForm(); std::cout<<std::endl;
+
+    vector1d v1_1 (3);
+    v1_1.setVal(someVector);
+    v1_1.saveToFile("v1_1_vals.txt");
+    std::cout<<"v1_1 = "<<std::endl;
+    v1_1.printVector();
+    vector1d v1_2 (3);
+    v1_2.loadFromFile("v1_1_vals.txt");
+    std::cout<<"v1_2 = "<<std::endl;
+    v1_2.printVector();
+
+    std::cout<<"testing done"<<std::endl;
+    }
+
+
+    int batchsize = 10;
+
+    {
+    std::cout<<std::endl<<"Testing file save load of W,B for conv2d"<<std::endl;
+    tensor3d * Yl_0 = newZeroTensor3dArr(2,3,4,batchsize);
+    Yl_0[0].setVal(2,3,4,inputYl_0_batchinx1);
+    tensor3d * Yl_1 = newZeroTensor3dArr(4,2,2,batchsize);
+
+    tensor3d * dLdYl_0 = newZeroTensor3dArr(2,3,4,batchsize);
+    tensor3d * dLdYl_1 = newZeroTensor3dArr(4,2,2,batchsize);
+    tensor4d * dLdWl_1 = newZeroTensor4dArr(2,4,2,3,batchsize);
+    tensor3d * dLdBl_1 = newZeroTensor3dArr(2,1,1,batchsize);
+
+
+    conv2d convl_1_yesB(2,4,2,3,Yl_0,Yl_1,
+              dLdYl_0, dLdYl_1, dLdWl_1, dLdBl_1, 
+              1,true,batchsize);
+    convl_1_yesB.setW(inputWl_1);
+    convl_1_yesB.setB(inputBl_1);
+
+    convl_1_yesB.convolve(0);
+    std::cout<<"Yl_1[0] = "<<std::endl;
+    Yl_1[0].printMatrixForm();
+
+    /* W,B loaded conv2d version */
+    std::cout<<"W,B for convl_1_yesB saved to file and then loaded to convl_1_yesB_1"<<std::endl;
+    tensor3d * Yl_1_1 = newZeroTensor3dArr(4,2,2,batchsize);
+
+    convl_1_yesB.saveWToFile("convl_1_yesB_W.txt");
+    convl_1_yesB.saveBToFile("convl_1_yesB_B.txt");
+
+    conv2d convl_1_yesB_1(2,4,2,3,Yl_0,Yl_1_1,
+              dLdYl_0, dLdYl_1, dLdWl_1, dLdBl_1, 
+              1,true,batchsize);
+
+    convl_1_yesB_1.loadWFromFile("convl_1_yesB_W.txt");
+    convl_1_yesB_1.loadBFromFile("convl_1_yesB_B.txt");
+
+    convl_1_yesB_1.convolve(0);
+    std::cout<<"Yl_1_1[0] = "<<std::endl;
+    Yl_1_1[0].printMatrixForm();
+    std::cout<<"testing done"<<std::endl;
+    }
+
+    }
+    /* DONE testing part 1: tensor3d, tensor4d, vector1d, conv2d*/
+
+    /* testing part2: tensorBatchNorm */
+    {
+
+    }
+}
+
 int main(){
     /*testtensor(10);*/
     /*testconv2d_convolve();*/
@@ -948,6 +1098,7 @@ int main(){
     /*testvector1d();*/
     /*testv1daffinetransform();*/
     /*testv1dsoftmax();*/
-    testv1dcrossentropyloss();
+    /*testv1dcrossentropyloss();*/
+    saveloadtensorvector();
     return 0;
 }

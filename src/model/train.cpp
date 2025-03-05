@@ -2,6 +2,9 @@
 #include <iostream>
 #include <fstream>
 #include <filesystem>
+#include <array>
+
+#include <ctime>
 
 struct filebuffer{
     unsigned char * arr;
@@ -118,7 +121,18 @@ void setImageToTensorAndVector(imagedata_t & imageData, tensor3d * & ptensor3d, 
 
 void testSetTrainTestData(imagedata_t & trainData, imagedata_t & testData);
 
+int testtrain();
+
 int main(){
+
+
+    testtrain();
+
+
+    return 0;
+}
+
+int testtrain(){
     std::vector<double> avgTrainLossPerEpoch;
     std::vector<double> avgTestLossPerEpoch;
 
@@ -180,9 +194,14 @@ int main(){
 
     int epoch = 0;
     /*for(int epoch=0;epoch<epochs;++epoch)*/{
+
+        std::clock_t start, finish;
+        double duration;
+        start = clock();
+
         double currEpochAvgLoss=0;
 
-        for(int batch=0;batch<numTrainImage/batchsize;++batch){
+        for(int batch=0;batch<1/*numTrainImage/batchsize*/;++batch){
             
             tensor3d * dLdYl_0 = newZeroTensor3dArr(3,32,32,batchsize);
             tensor3d * dLdYl_1 = newZeroTensor3dArr(3,34,34,batchsize);
@@ -427,15 +446,26 @@ int main(){
         trainData.inx=0;
         currEpochAvgLoss /= (double) (numTrainImage/batchsize);
         avgTrainLossPerEpoch.push_back(currEpochAvgLoss);
+
+
+
+        finish = clock();
+        duration = (double)(finish - start) / CLOCKS_PER_SEC;
+        std::cout << duration << "seconds" << std::endl;
+
+
+
         /* get ready for inference, especially batchnorm */
         batchnorml_16.endOfEpoch();
         batchnorml_12.endOfEpoch();
         batchnorml_7.endOfEpoch();
         batchnorml_3.endOfEpoch();
 
+
+
         /* do inference on test data == start current epoch testing */
         double currEpochAvgTestDataLoss=0;
-        for(int testImgInx=0;testImgInx<1/*numTestImage*/;++testImgInx){
+        for(int testImgInx=0;testImgInx<3/*numTestImage*/;++testImgInx){
 
             setImageToTensorAndVector(testData, Yl_0, Y_truth, 0);
 

@@ -3,6 +3,9 @@
 #include<random>
 #include<cmath>
 #include<numeric>
+#include<fstream>
+#include<sstream>
+#include<string>
 
 struct dim3_t {
     int d;
@@ -51,8 +54,9 @@ class tensor3d {
     }
     public:
     tensor3d(){arr = nullptr; arrdim = {0,0,0};};
-    tensor3d(int d, int w, int h){setZero(d, w, h);} /* initialize with 0 */
+    tensor3d(int d, int w, int h){arr = nullptr; setZero(d, w, h);} /* initialize with 0 */
     tensor3d(int d, int w, int h, std::vector<std::vector<std::vector<double>>> inputVector){
+        arr = nullptr;
         setVal(d,w,h,inputVector);
     }
     ~tensor3d(){                                    /* destructor */
@@ -146,6 +150,49 @@ class tensor3d {
             std::cout<<std::endl;
         }
     }
+
+    void saveToFile(std::string fileName){
+        int arrSize = arrdim.d * arrdim.w * arrdim.h;
+        if(arrSize==0){
+            std::cerr<<"tensor3d storeTensor(): tensor size is 0, nothing to store "<<arrdim.d<<" "<<arrdim.w<<" "<<arrdim.h<<std::endl;
+            throw 0;
+        }
+
+        std::stringstream streamStorage;
+        streamStorage<<arr[0];
+        for(int i=1;i<arrSize;++i){
+            streamStorage<<" "<<arr[i];
+        }
+        streamStorage<<"\n";
+
+        std::ofstream outputFile (fileName.c_str());
+        outputFile<<streamStorage.str();
+        outputFile.close();
+    }
+
+    void loadFromFile(std::string fileName){
+        int arrSize = arrdim.d * arrdim.w * arrdim.h;
+        std::ifstream inputFile (fileName.c_str());
+        if(!inputFile.is_open()){
+            std::cerr<<"tensor3d loadFromFile(std::string): file "<<fileName<<" not found"<<std::endl;
+            throw 0;
+        }
+        {
+        int i=0;
+        double val;
+        while(inputFile>>val){
+            if(i==arrSize){
+                std::cerr<<"tensor3d loadFromFile(std::string): there are more values in file "<<fileName<<" than size of arr of tensor3d obj"<<std::endl;
+                throw 0;
+            }
+            arr[i] = val;
+            ++i;
+        }
+        }
+        inputFile.close();
+    }
+
+
 };
 
 class tensor4d {
@@ -165,9 +212,11 @@ class tensor4d {
     public:
     tensor4d() {arr = nullptr; rowdim=0; coldim = {0,0,0};}
     tensor4d(int d_prev, int d_curr, int w, int h, std::vector<std::vector<std::vector<std::vector<double>>>> inputVector) {
+        arr = nullptr;
         setVal(d_prev, d_curr, w, h, inputVector);
     }
     tensor4d(int d_prev, int d_curr, int w, int h){
+        arr = nullptr;
         setZero(d_prev, d_curr, w, h);
     }
     ~tensor4d(){                                        /* destructor */
@@ -258,6 +307,48 @@ class tensor4d {
         }
             std::cout<<std::endl;
         }
+    }
+
+    void saveToFile(std::string fileName){
+        int arrSize = rowdim * coldim.d * coldim.w * coldim.h;
+        if(arrSize==0){
+            std::cerr<<"tensor4d storeTensor(): tensor size is 0, nothing to store "<<rowdim<<" , "<<coldim.d<<" "<<coldim.w<<" "<<coldim.h<<std::endl;
+            throw 0;
+        }
+
+        std::stringstream streamStorage;
+        streamStorage<<arr[0];
+        for(int i=1;i<arrSize;++i){
+            streamStorage<<" "<<arr[i];
+        }
+        streamStorage<<"\n";
+
+        std::ofstream outputFile (fileName.c_str());
+        outputFile<<streamStorage.str();
+        outputFile.close();
+    }
+
+    void loadFromFile(std::string fileName){
+        int arrSize = rowdim * coldim.d * coldim.w * coldim.h;
+        std::ifstream inputFile (fileName.c_str());
+        if(!inputFile.is_open()){
+            std::cerr<<"tensor4d loadFromFile(std::string): file "<<fileName<<" not found"<<std::endl;
+            throw 0;
+        }
+        {
+        int i=0;
+        double val;
+        while(inputFile>>val){
+            if(i==arrSize){
+                std::cerr<<"tensor4d loadFromFile(std::string): there are more values in file "<<fileName;
+                std::cerr<<" than size of arr of tensor4d obj "<<rowdim<<" , "<<coldim.d<<" "<<coldim.w<<" "<<coldim.h<<std::endl;
+                throw 0;
+            }
+            arr[i] = val;
+            ++i;
+        }
+        }
+        inputFile.close();
     }
 };
 
@@ -484,6 +575,48 @@ class conv2d{
     void setB(std::vector<std::vector<std::vector<double>>> & Bvector){
         B.setVal(WBrowInx, 1, 1, Bvector);
     }
+
+    void saveWToFile(std::string fileName){
+        try{
+            W.saveToFile(fileName);
+        }catch(int errorInt){
+            std::cerr<<"conv2d saveWToFile("<<fileName<<"): error thrown with W.saveToFile("<<fileName<<")"<<std::endl;
+            throw errorInt;
+        }
+    }
+    void loadWFromFile(std::string fileName){
+        try{
+            W.loadFromFile(fileName);
+        }catch(int errorInt){
+            std::cerr<<"conv2d loadWFromFile("<<fileName<<"): error thrown with W.loadFromFile("<<fileName<<")"<<std::endl;
+            throw errorInt;
+        }
+    }
+    void saveBToFile(std::string fileName){
+        if(!includeBias){
+            std::cerr<<"conv2d saveBToFile(std::string): includeBias == false, no B to save"<<std::endl;
+            throw 0;
+        }
+        try{
+            B.saveToFile(fileName);
+        }catch(int errorInt){
+            std::cerr<<"conv2d saveBToFile("<<fileName<<"): error thrown with B.saveToFile("<<fileName<<")"<<std::endl;
+            throw errorInt;
+        }
+    }
+    void loadBFromFile(std::string fileName){
+        if(!includeBias){
+            std::cerr<<"conv2d loadBToFile(std::string): includeBias == false, no B to save"<<std::endl;
+            throw 0;
+        }
+        try{
+            B.loadFromFile(fileName);
+        }catch(int errorInt){
+            std::cerr<<"conv2d loadBFromFile("<<fileName<<"): error thrown with B.loadFromFile("<<fileName<<")"<<std::endl;
+            throw errorInt;
+        }
+    }
+
     void convolve(int batchInx=0){
         dim3_t Yprevdim = Yl_prev[batchInx].dim();
         dim3_t Ycurrdim = Yl_curr[batchInx].dim();
@@ -1002,8 +1135,8 @@ class tensorBatchNorm{
     std::vector<double> sum_mus_per_depth;
     std::vector<double> sum_sigma2s_per_depth;
     double epsilon;
-    tensor3d gamma;
-    tensor3d beta;
+    tensor3d gamma; /*dim.dx1x1*/
+    tensor3d beta; /*dim.dx1x1*/
     tensor3d * dLdgamma;
     tensor3d * dLdbeta;
 
@@ -1321,9 +1454,12 @@ class tensorBatchNorm{
 
         for(int z=0;z<dim.d;++z){
             double sum_mus = std::accumulate(mus_per_depth[z].begin(), mus_per_depth[z].end(), 0.0);
-            sum_mus_per_depth[z] = sum_mus;
+            sum_mus_per_depth[z] = sum_mus / (mus_per_depth[z].size());
             double sum_sigma2s = std::accumulate(sigma2s_per_depth[z].begin(), sigma2s_per_depth[z].end(), 0.0);
-            sum_sigma2s_per_depth[z] = sum_sigma2s;
+            sum_sigma2s_per_depth[z] = sum_sigma2s / (sigma2s_per_depth[z].size());
+
+            mus_per_depth[z].clear();
+            sigma2s_per_depth[z].clear();
         }
         
     }
@@ -1342,14 +1478,12 @@ class tensorBatchNorm{
          *   = gamma/sqrt(Var+epsilon) * x + (beta - gamma*E/std::sqrt(Var+epsilon))
          * */
         for(int z=0;z<dim.d;++z){
-            double E = sum_mus_per_depth[z] / (mus_per_depth[z].size());
-            double Var = sum_sigma2s_per_depth[z] / mus_per_depth[z].size() * ((batchSize * dim.w * dim.h) / (batchSize * dim.w * dim.h - 1));
+            double E = sum_mus_per_depth[z];
+            double Var = sum_sigma2s_per_depth[z] * ((batchSize * dim.w * dim.h) / (batchSize * dim.w * dim.h - 1));
 
-            std::cout<<"E = "<<E<<" = "<<sum_mus_per_depth[z]<<" / "<<mus_per_depth[z].size();
-            std::cout<<"Var = "<<Var<<" = "<<sum_sigma2s_per_depth[z]<<" / "<<mus_per_depth[z].size()<<" * "<<(batchSize * dim.w * dim.h)<<" / "<<(batchSize * dim.w * dim.h - 1)<<std::endl;
+            /*std::cout<<"E = "<<E<<" = "<<sum_mus_per_depth[z];
+            std::cout<<"Var = "<<Var<<" = "<<sum_sigma2s_per_depth[z]<<" * "<<(batchSize * dim.w * dim.h)<<" / "<<(batchSize * dim.w * dim.h - 1)<<std::endl;*/
 
-            mus_per_depth[z].clear();
-            sigma2s_per_depth[z].clear();
 
             dim3_t zInx = {z,0,0};
             double a = gamma(zInx) / std::sqrt(Var + epsilon);
@@ -1549,6 +1683,59 @@ class vector1d {
             std::cout<<(*this)(i)<<" ";
         }
         std::cout<<")"<<std::endl;
+    }
+
+    void saveToFile(std::string fileName){
+        if(arr==nullptr){
+            if(pt3d==nullptr){
+                std::cerr<<"vector1d saveToFile(): arr and pt3d both nullptr, nothing to save"<<std::endl;
+                throw 0;
+            }else{
+                std::cerr<<"vector1d saveToFile(): this vector1d is a proxy to a tensor3d - save the tensor3d instead directly"<<std::endl;
+                throw 0;
+            }
+        }
+
+        std::stringstream streamStorage;
+        streamStorage<<arr[0];
+        for(int i=1;i<size;++i){
+            streamStorage<<" "<<arr[i];
+        }
+        streamStorage<<"\n";
+
+        std::ofstream outputFile (fileName.c_str());
+        outputFile<<streamStorage.str();
+        outputFile.close();
+    }
+
+    void loadFromFile(std::string fileName){
+        if(arr==nullptr){
+            if(pt3d==nullptr){
+                std::cerr<<"vector1d loadFromFile(): arr and pt3d both nullptr, nowhere to load"<<std::endl;
+                throw 0;
+            }else{
+                std::cerr<<"vector1d loadFromFile(): this vector1d is a proxy to a tensor3d - load the tensor3d instead directly"<<std::endl;
+                throw 0;
+            }
+        }
+        std::ifstream inputFile (fileName.c_str());
+        if(!inputFile.is_open()){
+            std::cerr<<"vector1d loadFromFile(std::string): file "<<fileName<<" not found"<<std::endl;
+            throw 0;
+        }
+        {
+        int i=0;
+        double val;
+        while(inputFile>>val){
+            if(i==size){
+                std::cerr<<"vector1d loadFromFile(std::string): there are more values in file "<<fileName<<" than size of arr of tensor3d obj"<<std::endl;
+                throw 0;
+            }
+            arr[i] = val;
+            ++i;
+        }
+        }
+        inputFile.close();
     }
 
 };
@@ -1866,7 +2053,6 @@ class v1dCrossEntropyLoss{
             for(int i=0;i<dimSize;++i){
                 tmp += truth[batchInx](i) * std::log(y[batchInx](i));
             }
-            tmp /= dimSize;
             averageloss += tmp;
         }
         averageloss /= batchSize;
@@ -1881,7 +2067,6 @@ class v1dCrossEntropyLoss{
         for(int i=0;i<dimSize;++i){
             tmp += truth[0](i) * std::log(y[0](i));
         }
-        tmp /= dimSize;
         averageloss += tmp;
 
         return (-1) * averageloss;
