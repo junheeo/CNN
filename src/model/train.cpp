@@ -193,6 +193,35 @@ int testtrain(){
     v1dsoftmax softmaxffl_19 {Yffl_18,Yffl_19,batchsize};
     v1dCrossEntropyLoss lossl {Yffl_19,Y_truth,batchsize};
 
+    /*
+    {
+    std::cout<<"load neural net parameters from files"<<std::endl;
+    convl_2.loadWFromFile("model_convl_2_W.txt");
+
+    batchnorml_3.loadGFromFile("model_batchnorml_3_G.txt");
+    batchnorml_3.loadBFromFile("model_batchnorml_3_B.txt");
+
+    convl_6.loadWFromFile("model_convl_6_W.txt");
+
+    batchnorml_7.loadGFromFile("model_batchnorml_7_G.txt");
+    batchnorml_7.loadBFromFile("model_batchnorml_7_B.txt");
+
+    convl_11.loadWFromFile("model_convl_11_W.txt");
+
+    batchnorml_12.loadGFromFile("model_batchnorml_12_G.txt");
+    batchnorml_12.loadBFromFile("model_batchnorml_12_B.txt");
+
+    convl_15.loadWFromFile("model_convl_15_W.txt");
+
+    batchnorml_16.loadGFromFile("model_batchnorml_16_G.txt");
+    batchnorml_16.loadBFromFile("model_batchnorml_16_B.txt");
+
+    affineffl_18.loadWFromFile("model_affineffl_18_W.txt");
+    affineffl_18.loadBFromFile("model_affineffl_18_B.txt");
+    }
+    */
+
+
     int epoch = 0;
     /*for(int epoch=0;epoch<epochs;++epoch)*/{
 
@@ -525,6 +554,35 @@ int testtrain(){
         std::cout<<val<<",";
     }
     std::cout<<std::endl;
+
+
+
+    {
+    convl_2.saveWToFile("model_convl_2_W.txt");
+
+    batchnorml_3.saveGToFile("model_batchnorml_3_G.txt");
+    batchnorml_3.saveBToFile("model_batchnorml_3_B.txt");
+
+    convl_6.saveWToFile("model_convl_6_W.txt");
+
+    batchnorml_7.saveGToFile("model_batchnorml_7_G.txt");
+    batchnorml_7.saveBToFile("model_batchnorml_7_B.txt");
+
+    convl_11.saveWToFile("model_convl_11_W.txt");
+
+    batchnorml_12.saveGToFile("model_batchnorml_12_G.txt");
+    batchnorml_12.saveBToFile("model_batchnorml_12_B.txt");
+
+    convl_15.saveWToFile("model_convl_15_W.txt");
+
+    batchnorml_16.saveGToFile("model_batchnorml_16_G.txt");
+    batchnorml_16.saveBToFile("model_batchnorml_16_B.txt");
+
+    affineffl_18.saveWToFile("model_affineffl_18_W.txt");
+    affineffl_18.saveBToFile("model_affineffl_18_B.txt");
+    }
+
+
 
     std::cout<<"end of main successfully reached."<<std::endl;
     delete [] trainData.arr;
