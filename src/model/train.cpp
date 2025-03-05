@@ -135,6 +135,7 @@ int main(){
 int testtrain(){
     std::vector<double> avgTrainLossPerEpoch;
     std::vector<double> avgTestLossPerEpoch;
+    std::vector<double> avgTestAccuracyPerEpoch;
 
     imagedata_t trainData;
     imagedata_t testData;
@@ -195,9 +196,11 @@ int testtrain(){
     int epoch = 0;
     /*for(int epoch=0;epoch<epochs;++epoch)*/{
 
+        /*
         std::clock_t start, finish;
         double duration;
         start = clock();
+        */
 
         double currEpochAvgLoss=0;
 
@@ -448,11 +451,11 @@ int testtrain(){
         avgTrainLossPerEpoch.push_back(currEpochAvgLoss);
 
 
-
+        /*
         finish = clock();
         duration = (double)(finish - start) / CLOCKS_PER_SEC;
         std::cout << duration << "seconds" << std::endl;
-
+        */
 
 
         /* get ready for inference, especially batchnorm */
@@ -465,6 +468,7 @@ int testtrain(){
 
         /* do inference on test data == start current epoch testing */
         double currEpochAvgTestDataLoss=0;
+        double currEpochTestAccuracy=0;
         for(int testImgInx=0;testImgInx<3/*numTestImage*/;++testImgInx){
 
             setImageToTensorAndVector(testData, Yl_0, Y_truth, 0);
@@ -490,17 +494,37 @@ int testtrain(){
             softmaxffl_19.softmax(0);
 
             double currImgLoss = lossl.loss();
-            std::cout<<"current image("<<testImgInx<<") loss = "<<currImgLoss<<std::endl;
+            std::cout<<"current image("<<testImgInx<<") loss, correctlypredict = "<<currImgLoss<<" "<<lossl.accuratePrediction()<<std::endl;
             currEpochAvgTestDataLoss += currImgLoss;
+
+            currEpochTestAccuracy += (double)lossl.accuratePrediction();
         }
         /* end of test data */
         testData.inx=0;
         currEpochAvgTestDataLoss /= numTestImage;
         avgTestLossPerEpoch.push_back(currEpochAvgTestDataLoss);
 
-
+        currEpochTestAccuracy /= numTestImage;
+        avgTestAccuracyPerEpoch.push_back(currEpochTestAccuracy);
     }
 
+    std::cout<<"avgTrainLossPerEpoch = ";
+    for(double val : avgTrainLossPerEpoch){
+        std::cout<<val<<",";
+    }
+    std::cout<<std::endl;
+
+    std::cout<<"avgTestLossPerEpoch = ";
+    for(double val : avgTestLossPerEpoch){
+        std::cout<<val<<",";
+    }
+    std::cout<<std::endl;
+
+    std::cout<<"avgTestAccuracyPerEpoch = ";
+    for(double val : avgTestAccuracyPerEpoch){
+        std::cout<<val<<",";
+    }
+    std::cout<<std::endl;
 
     std::cout<<"end of main successfully reached."<<std::endl;
     delete [] trainData.arr;

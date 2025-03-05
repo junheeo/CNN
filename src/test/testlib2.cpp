@@ -929,6 +929,9 @@ void testv1dcrossentropyloss(){
     double avgloss=lossl.avgloss();
     std::cout<<"avgloss = "<<avgloss<<std::endl;
 
+    int accuracy = lossl.accuratePrediction();
+    std::cout<<"accuracy = "<<accuracy<<std::endl;
+
     lossl.setGradientTensors(dLdyffl_1);
     lossl.computeGrad(0);
 
@@ -1079,10 +1082,142 @@ void saveloadtensorvector(){
 
     }
     /* DONE testing part 1: tensor3d, tensor4d, vector1d, conv2d*/
-
+    std::cout<<std::endl<<std::endl;
     /* testing part2: tensorBatchNorm */
     {
+    std::cout<<std::endl<<"Testing file save load of tensorBatchNorm"<<std::endl;
+    std::vector<std::vector<std::vector<double>>> inputYl_0_batchindex0 {
+        {
+            {1, 2},
+            {3, 4},
+        },
+        {
+            {9, 10},
+            {11, 12}
+        }
+    };
+    std::vector<std::vector<std::vector<double>>> inputYl_0_batchindex1 {
+        {
+            {5, 6},
+            {7, 8},
+        },
+        {
+            {13, 14},
+            {15, 16}
+        }
+    };
+    std::vector<std::vector<std::vector<double>>> inputdLdYl_1_batchindex0 {
+        {
+            {0.1, 0.2},
+            {0.3, 0.4},
+        },
+        {
+            {5.1, 5.2},
+            {5.3, 5.4}
+        }
+    };
+    std::vector<std::vector<std::vector<double>>> inputdLdYl_1_batchindex1 {
+        {
+            {0.5, 0.6},
+            {0.7, 0.8},
+        },
+        {
+            {5.1, 5.2},
+            {5.3, 5.4}
+        }
+    };
 
+    int batchsize = 2;
+    tensor3d * Yl_0 = newZeroTensor3dArr(2,2,2,batchsize);
+    Yl_0[0].setVal(2,2,2,inputYl_0_batchindex0);
+    Yl_0[1].setVal(2,2,2,inputYl_0_batchindex1);
+    tensor3d * Yl_1 = newZeroTensor3dArr(2,2,2,batchsize);
+
+    tensorBatchNorm batchnorml_1(Yl_0,Yl_1,batchsize);
+
+
+    /*batchnorml_1.saveGToFile("Gl_1_vals.txt");
+    batchnorml_1.saveBToFile("Bl_1_vals.txt");*/
+    batchnorml_1.loadGFromFile("Gl_1_vals.txt");
+    batchnorml_1.loadBFromFile("Bl_1_vals.txt");
+
+    std::cout<<"testing done"<<std::endl<<std::endl;
+    }
+    /* DONE testing part2: tensorBatchNorm */
+
+    /* testing part3: affinetransform */
+    {
+    std::cout<<"Testing file save load of v1dAffineTransform"<<std::endl;
+    std::vector<std::vector<std::vector<double>>> inputYl_0_batchindex0 {
+        {
+            {1, 2},
+            {3, 4},
+        },
+        {
+            {5, 6},
+            {7, 8}
+        }
+    };
+    std::vector<std::vector<double>> inputWffl_1 {
+        {11,12,13,14,15,16,17,18},
+        {21,22,23,24,25,26,27,28}
+    };
+    std::vector<double> inputbffl_1 {1,2};
+    std::vector<double> inputdLdYffl_1 {0.1,0.2};
+
+    int batchsize = 2;
+    tensor3d * Yl_0 = newZeroTensor3dArr(2,2,2,batchsize);
+    Yl_0[0].setVal(2,2,2,inputYl_0_batchindex0);
+
+    vector1d * Yffl_0 = newVector1dArrFromTensor3dArr(Yl_0,batchsize);
+    vector1d * Yffl_1 = newZeroVector1dArr(2,batchsize);
+    vector1d * dLdYffl_0 = newZeroVector1dArr(8,batchsize);
+    vector1d * dLdYffl_1 = newZeroVector1dArr(2,batchsize);
+    dLdYffl_1[0].setVal(inputdLdYffl_1);
+    tensor3d * dLdWffl_1 = newZeroTensor3dArr(1,2,8,batchsize);
+    vector1d * dLdbffl_1 = newZeroVector1dArr(2,batchsize);
+
+    v1dAffineTransform affineffl_1 {Yffl_0, Yffl_1, batchsize};
+
+    affineffl_1.setb(inputbffl_1);
+    std::cout<<"affineffl_1.printb() = "<<std::endl;
+    affineffl_1.printb();
+    affineffl_1.setW(inputWffl_1);
+    std::cout<<"affineffl_1.printW() = "<<std::endl;
+    affineffl_1.printW();
+
+    /*
+    affineffl_1.setGradientTensors(dLdYffl_0, dLdYffl_1, dLdWffl_1, dLdbffl_1);
+
+    affineffl_1.affine(0);
+    std::cout<<"Yffl_0[0] = "<<std::endl;
+    Yffl_0[0].printVector();
+    std::cout<<"Yffl_1[0] = "<<std::endl;
+    Yffl_1[0].printVector();
+    */
+    affineffl_1.saveWToFile("affine_W.txt");
+    affineffl_1.saveBToFile("affine_B.txt");
+    
+    v1dAffineTransform affineffl_1_1 {Yffl_0, Yffl_1, batchsize};
+
+    std::cout<<"before load:"<<std::endl;
+    std::cout<<"affineffl_1_1.printb() = "<<std::endl;
+    affineffl_1_1.printb();
+    std::cout<<"affineffl_1_1.printW() = "<<std::endl;
+    affineffl_1_1.printW();
+
+    affineffl_1_1.loadWFromFile("affine_W.txt");
+    affineffl_1_1.loadBFromFile("affine_B.txt");
+
+    std::cout<<"after load:"<<std::endl;
+    std::cout<<"affineffl_1_1.printb() = "<<std::endl;
+    affineffl_1_1.printb();
+    std::cout<<"should equal (1,2)"<<std::endl;
+    std::cout<<"affineffl_1_1.printW() = "<<std::endl;
+    affineffl_1_1.printW();
+    std::cout<<"should equal  {11,12,13,14,15,16,17,18},"<<std::endl<<"{21,22,23,24,25,26,27,28}"<<std::endl<<std::endl;
+
+    std::cout<<"testing done"<<std::endl<<std::endl;
     }
 }
 
@@ -1098,7 +1233,7 @@ int main(){
     /*testvector1d();*/
     /*testv1daffinetransform();*/
     /*testv1dsoftmax();*/
-    /*testv1dcrossentropyloss();*/
-    saveloadtensorvector();
+    testv1dcrossentropyloss();
+    /*saveloadtensorvector();*/
     return 0;
 }

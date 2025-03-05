@@ -1265,6 +1265,49 @@ class tensorBatchNorm{
         }
         }
     }
+
+    void saveGToFile(std::string fileName){
+        try{
+            gamma.saveToFile(fileName);
+        }catch(int errorInt){
+            std::cerr<<"tensorBatchNorm saveGToFile("<<fileName<<"): error thrown with gamma.saveToFile("<<fileName<<")"<<std::endl;
+            throw errorInt;
+        }
+        /*std::cout<<"saveGToFile(): gamma = "<<std::endl;
+        gamma.printMatrixForm();*/
+    }
+    void loadGFromFile(std::string fileName){
+        try{
+            gamma.loadFromFile(fileName);
+        }catch(int errorInt){
+            std::cerr<<"tensorBatchNorm loadGFromFile("<<fileName<<"): error thrown with gamma.loadFromFile("<<fileName<<")"<<std::endl;
+            throw errorInt;
+        }
+
+        /*std::cout<<"loadGFromFile(): gamma = "<<std::endl;
+        gamma.printMatrixForm();*/
+    }
+    void saveBToFile(std::string fileName){
+        try{
+            beta.saveToFile(fileName);
+        }catch(int errorInt){
+            std::cerr<<"tensorBatchNorm saveBToFile("<<fileName<<"): error thrown with beta.saveToFile("<<fileName<<")"<<std::endl;
+            throw errorInt;
+        }
+        /*std::cout<<"saveBToFile(): beta = "<<std::endl;
+        beta.printMatrixForm();*/
+    }
+    void loadBFromFile(std::string fileName){
+        try{
+            beta.loadFromFile(fileName);
+        }catch(int errorInt){
+            std::cerr<<"tensorBatchNorm loadBFromFile("<<fileName<<"): error thrown with beta.loadFromFile("<<fileName<<")"<<std::endl;
+            throw errorInt;
+        }
+
+        /*std::cout<<"loadBFromFile(): beta = "<<std::endl;
+        beta.printMatrixForm();*/
+    }
     
     void batchnorm(){
         for(int z=0;z<dim.d;++z){
@@ -1857,6 +1900,39 @@ class v1dAffineTransform{
         b.setVal(bvector);
     }
 
+    void saveWToFile(std::string fileName){
+        try{
+            W.saveToFile(fileName);
+        }catch(int errorInt){
+            std::cerr<<"v1dAffineTransform saveWToFile("<<fileName<<"): error thrown with W.saveToFile("<<fileName<<")"<<std::endl;
+            throw errorInt;
+        }
+    }
+    void loadWFromFile(std::string fileName){
+        try{
+            W.loadFromFile(fileName);
+        }catch(int errorInt){
+            std::cerr<<"v1dAffineTransform loadWFromFile("<<fileName<<"): error thrown with W.loadFromFile("<<fileName<<")"<<std::endl;
+            throw errorInt;
+        }
+    }
+    void saveBToFile(std::string fileName){
+        try{
+            b.saveToFile(fileName);
+        }catch(int errorInt){
+            std::cerr<<"v1dAffineTransform saveBToFile("<<fileName<<"): error thrown with b.saveToFile("<<fileName<<")"<<std::endl;
+            throw errorInt;
+        }
+    }
+    void loadBFromFile(std::string fileName){
+        try{
+            b.loadFromFile(fileName);
+        }catch(int errorInt){
+            std::cerr<<"v1dAffineTransform loadBFromFile("<<fileName<<"): error thrown with b.loadFromFile("<<fileName<<")"<<std::endl;
+            throw errorInt;
+        }
+    }
+
     void printW(){ W.printMatrixForm(); }
     void printb(){ b.printVector(); }
 
@@ -2070,6 +2146,31 @@ class v1dCrossEntropyLoss{
         averageloss += tmp;
 
         return (-1) * averageloss;
+    }
+
+    int accuratePrediction(){
+        int dimSize = y[0].size;
+        int truthInx=0;
+        while(truthInx<dimSize && truth[0](truthInx)!=1){
+            ++truthInx;
+        }
+
+        int predictInx=0;
+        if(dimSize>1){
+            int tmpInx=0;
+            while(tmpInx<dimSize){
+                if(y[0](tmpInx) > y[0](predictInx)){
+                    predictInx = tmpInx;
+                }
+                ++tmpInx;
+            }
+        }
+
+        if(truthInx==predictInx){
+            return 1;
+        }else{
+            return 0;
+        }
     }
 
     void computeGrad(int batchInx=0){
