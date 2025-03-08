@@ -3,6 +3,7 @@
 #include <fstream>
 #include <filesystem>
 #include <array>
+#include <thread>
 
 #include <ctime>
 
@@ -121,18 +122,21 @@ void setImageToTensorAndVector(imagedata_t & imageData, tensor3d * & ptensor3d, 
 
 void testSetTrainTestData(imagedata_t & trainData, imagedata_t & testData);
 
-int testtrain();
+int traintest();
+void testall();
 
 int main(){
 
 
-    testtrain();
+    traintest();
+    std::cout<<std::endl<<"run testall()"<<std::endl;
+    testall();
 
 
     return 0;
 }
 
-int testtrain(){
+int traintest(){
     std::vector<double> avgTrainLossPerEpoch;
     std::vector<double> avgTestLossPerEpoch;
     std::vector<double> avgTestAccuracyPerEpoch;
@@ -200,21 +204,29 @@ int testtrain(){
 
     batchnorml_3.loadGFromFile("model_batchnorml_3_G.txt");
     batchnorml_3.loadBFromFile("model_batchnorml_3_B.txt");
+    batchnorml_3.loadSumMusFromFile("model_batchnorml_3_sumMu.txt");
+    batchnorml_3.loadSumSigma2sFromFile("model_batchnorml_3_sumSigma2.txt");
 
     convl_6.loadWFromFile("model_convl_6_W.txt");
 
     batchnorml_7.loadGFromFile("model_batchnorml_7_G.txt");
     batchnorml_7.loadBFromFile("model_batchnorml_7_B.txt");
+    batchnorml_7.loadSumMusFromFile("model_batchnorml_7_sumMu.txt");
+    batchnorml_7.loadSumSigma2sFromFile("model_batchnorml_7_sumSigma2.txt");
 
     convl_11.loadWFromFile("model_convl_11_W.txt");
 
     batchnorml_12.loadGFromFile("model_batchnorml_12_G.txt");
     batchnorml_12.loadBFromFile("model_batchnorml_12_B.txt");
+    batchnorml_12.loadSumMusFromFile("model_batchnorml_12_sumMu.txt");
+    batchnorml_12.loadSumSigma2sFromFile("model_batchnorml_12_sumSigma2.txt");
 
     convl_15.loadWFromFile("model_convl_15_W.txt");
 
     batchnorml_16.loadGFromFile("model_batchnorml_16_G.txt");
     batchnorml_16.loadBFromFile("model_batchnorml_16_B.txt");
+    batchnorml_16.loadSumMusFromFile("model_batchnorml_16_sumMu.txt");
+    batchnorml_16.loadSumSigma2sFromFile("model_batchnorml_16_sumSigma2.txt");
 
     affineffl_18.loadWFromFile("model_affineffl_18_W.txt");
     affineffl_18.loadBFromFile("model_affineffl_18_B.txt");
@@ -222,8 +234,8 @@ int testtrain(){
     */
 
 
-    int epoch = 0;
-    /*for(int epoch=0;epoch<epochs;++epoch)*/{
+    /*int epoch = 0;*/
+    for(int epoch=0;epoch<1/*epochs*/;++epoch){
 
         /*
         std::clock_t start, finish;
@@ -294,45 +306,84 @@ int testtrain(){
             
 
             /* train-forward */
+            std::vector<std::thread> threads;
             for(int batchInx=0;batchInx<batchsize;++batchInx){
                 setImageToTensorAndVector(trainData, Yl_0, Y_truth, batchInx);
-
-                padl_1.zeropad(batchInx);
-                convl_2.convolve(batchInx);
             }
+
+            for(int batchInx=0;batchInx<batchsize;++batchInx){
+                threads.push_back(std::thread([&padl_1, &convl_2](int batchInx){
+                    padl_1.zeropad(batchInx);
+                    convl_2.convolve(batchInx);
+                    /*std::cout<<"layers1,2 thread "<<batchInx<<std::endl;*/
+                }, batchInx));
+            }
+            for(auto& t : threads){
+                t.join();
+            }
+            threads.clear();
+            /*std::cout<<"start batchnorml_3"<<std::endl;*/
             batchnorml_3.batchnorm();
             
             for(int batchInx=0;batchInx<batchsize;++batchInx){
-                relul_4.relu(batchInx);
-                padl_5.zeropad(batchInx);
-                convl_6.convolve(batchInx);
+                threads.push_back(std::thread([&relul_4, &padl_5, &convl_6](int batchInx){
+                    relul_4.relu(batchInx);
+                    padl_5.zeropad(batchInx);
+                    convl_6.convolve(batchInx);
+                    /*std::cout<<"layers4,5,6 thread "<<batchInx<<std::endl;*/
+                }, batchInx));
             }
+            for(auto& t : threads){
+                t.join();
+            }
+            threads.clear();
+            /*std::cout<<"start batchnorml_7"<<std::endl;*/
             batchnorml_7.batchnorm();
             
             for(int batchInx=0;batchInx<batchsize;++batchInx){
-                relul_8.relu(batchInx);
-                pooll_9.maxpool(batchInx);
-                padl_10.zeropad(batchInx);
-                convl_11.convolve(batchInx);
+                threads.push_back(std::thread([&relul_8, &pooll_9, &padl_10, &convl_11](int batchInx){
+                    relul_8.relu(batchInx);
+                    pooll_9.maxpool(batchInx);
+                    padl_10.zeropad(batchInx);
+                    convl_11.convolve(batchInx);
+                    /*std::cout<<"layers8,9,10,11 thread "<<batchInx<<std::endl;*/
+                }, batchInx));
             }
-            
+            for(auto& t : threads){
+                t.join();
+            }
+            threads.clear();
+            /*std::cout<<"start batchnorml_12"<<std::endl;*/
             batchnorml_12.batchnorm();
             
             for(int batchInx=0;batchInx<batchsize;++batchInx){
-                relul_13.relu(batchInx);
-                
-                pooll_14.maxpool(batchInx);
-                
-                convl_15.convolve(batchInx);
-                
+                threads.push_back(std::thread([&relul_13, &pooll_14, &convl_15](int batchInx){
+                    relul_13.relu(batchInx);
+                    pooll_14.maxpool(batchInx);
+                    convl_15.convolve(batchInx);
+                    /*std::cout<<"layers13,14,15 thread "<<batchInx<<std::endl;*/
+                }, batchInx));
             }
-            
+            for(auto& t : threads){
+                t.join();
+            }
+            threads.clear();
+            /*std::cout<<"start batchnorml_16"<<std::endl;*/
             batchnorml_16.batchnorm();
+
             for(int batchInx=0;batchInx<batchsize;++batchInx){
-                relul_17.relu(batchInx);
-                affineffl_18.affine(batchInx);
-                softmaxffl_19.softmax(batchInx);
+                threads.push_back(std::thread([&relul_17, &affineffl_18, &softmaxffl_19](int batchInx){
+                    relul_17.relu(batchInx);
+                    affineffl_18.affine(batchInx);
+                    softmaxffl_19.softmax(batchInx);
+                    /*std::cout<<"layers17,18,19 thread "<<batchInx<<std::endl;*/
+                }, batchInx));
             }
+            for(auto& t : threads){
+                t.join();
+            }
+            threads.clear();
+
             double currBatchAvgLossVal = lossl.avgloss();
             std::cout<<"average current batch loss("<<batch<<") = "<<currBatchAvgLossVal<<std::endl;
             currEpochAvgLoss += currBatchAvgLossVal;
@@ -387,50 +438,125 @@ int testtrain(){
 
             /* train-backward */
             for(int batchInx=0;batchInx<batchsize;++batchInx){
-                lossl.computeGrad(batchInx);
-                softmaxffl_19.computeGrad(batchInx);
-                affineffl_18.computeGrad(batchInx);
+                threads.push_back(std::thread([&lossl, &softmaxffl_19, &affineffl_18](int batchInx){
+                    lossl.computeGrad(batchInx);
+                    softmaxffl_19.computeGrad(batchInx);
+                    affineffl_18.computeGrad(batchInx);
+                    /*std::cout<<"layerslossl,19,18 thread "<<batchInx<<std::endl;*/
+                }, batchInx));
             }
+            for(auto& t : threads){
+                t.join();
+            }
+            threads.clear();
             affineffl_18.batchGD(0.002);
+
             for(int batchInx=0;batchInx<batchsize;++batchInx){
-                relul_17.computeGrad(batchInx);
+                threads.push_back(std::thread([&relul_17](int batchInx){
+                    relul_17.computeGrad(batchInx);
+                    /*std::cout<<"layers17 thread "<<batchInx<<std::endl;*/
+                }, batchInx));
             }
+            for(auto& t : threads){
+                t.join();
+            }
+            threads.clear();
+
             batchnorml_16.computeGrad();
             batchnorml_16.batchGD(0.002);
+
             for(int batchInx=0;batchInx<batchsize;++batchInx){
-                convl_15.computeGrad(batchInx);
+                threads.push_back(std::thread([&convl_15](int batchInx){
+                    convl_15.computeGrad(batchInx);
+                    /*std::cout<<"layers15 thread "<<batchInx<<std::endl;*/
+                }, batchInx));
             }
+            for(auto& t : threads){
+                t.join();
+            }
+            threads.clear();
             convl_15.batchGD(0.002);
+
             for(int batchInx=0;batchInx<batchsize;++batchInx){
-                pooll_14.computeGrad(batchInx);
-                relul_13.computeGrad(batchInx);
+                threads.push_back(std::thread([&pooll_14, &relul_13](int batchInx){
+                    pooll_14.computeGrad(batchInx);
+                    relul_13.computeGrad(batchInx);
+                    /*std::cout<<"layers14,13 thread "<<batchInx<<std::endl;*/
+                }, batchInx));
             }
+            for(auto& t : threads){
+                t.join();
+            }
+            threads.clear();
+
             batchnorml_12.computeGrad();
             batchnorml_12.batchGD(0.002);
+
             for(int batchInx=0;batchInx<batchsize;++batchInx){
-                convl_11.computeGrad(batchInx);
+                threads.push_back(std::thread([&convl_11](int batchInx){
+                    convl_11.computeGrad(batchInx);
+                    /*std::cout<<"layers11 thread "<<batchInx<<std::endl;*/
+                }, batchInx));
             }
+            for(auto& t : threads){
+                t.join();
+            }
+            threads.clear();
             convl_11.batchGD(0.002);
+
             for(int batchInx=0;batchInx<batchsize;++batchInx){
-                padl_10.computeGrad(batchInx);
-                pooll_9.computeGrad(batchInx);
-                relul_8.computeGrad(batchInx);
+                threads.push_back(std::thread([&padl_10, &pooll_9, &relul_8](int batchInx){
+                    padl_10.computeGrad(batchInx);
+                    pooll_9.computeGrad(batchInx);
+                    relul_8.computeGrad(batchInx);
+                    /*std::cout<<"layers10,9,8 thread "<<batchInx<<std::endl;*/
+                }, batchInx));
             }
+            for(auto& t : threads){
+                t.join();
+            }
+            threads.clear();
+
             batchnorml_7.computeGrad();
             batchnorml_7.batchGD(0.002);
+
             for(int batchInx=0;batchInx<batchsize;++batchInx){
-                convl_6.computeGrad(batchInx);
+                threads.push_back(std::thread([&convl_6](int batchInx){
+                    convl_6.computeGrad(batchInx);
+                    /*std::cout<<"layers6 thread "<<batchInx<<std::endl;*/
+                }, batchInx));
             }
+            for(auto& t : threads){
+                t.join();
+            }
+            threads.clear();
             convl_6.batchGD(0.002);
+
             for(int batchInx=0;batchInx<batchsize;++batchInx){
-                padl_5.computeGrad(batchInx);
-                relul_4.computeGrad(batchInx);
+                threads.push_back(std::thread([&padl_5, &relul_4](int batchInx){
+                    padl_5.computeGrad(batchInx);
+                    relul_4.computeGrad(batchInx);
+                    /*std::cout<<"layers5,4 thread "<<batchInx<<std::endl;*/
+                }, batchInx));
             }
+            for(auto& t : threads){
+                t.join();
+            }
+            threads.clear();
+
             batchnorml_3.computeGrad();
             batchnorml_3.batchGD(0.002);
+
             for(int batchInx=0;batchInx<batchsize;++batchInx){
-                convl_2.computeGrad(batchInx);
+                threads.push_back(std::thread([&convl_2](int batchInx){
+                    convl_2.computeGrad(batchInx);
+                    /*std::cout<<"layers2 thread "<<batchInx<<std::endl;*/
+                }, batchInx));
             }
+            for(auto& t : threads){
+                t.join();
+            }
+            threads.clear();
             convl_2.batchGD(0.002);
 
 
@@ -498,35 +624,64 @@ int testtrain(){
         /* do inference on test data == start current epoch testing */
         double currEpochAvgTestDataLoss=0;
         double currEpochTestAccuracy=0;
-        for(int testImgInx=0;testImgInx<3/*numTestImage*/;++testImgInx){
+        {
+        std::vector<std::thread> threads;
 
-            setImageToTensorAndVector(testData, Yl_0, Y_truth, 0);
+        for(int testImgInx=0;testImgInx<20/*numTestImage*/;testImgInx+=batchsize){
+            for(int i=0;i<batchsize;++i){
+                setImageToTensorAndVector(testData, Yl_0, Y_truth, i);
+            }
 
-            padl_1.zeropad(0);
-            convl_2.convolve(0);
-            batchnorml_3.inference();
-            relul_4.relu(0);
-            padl_5.zeropad(0);
-            convl_6.convolve(0);
-            batchnorml_7.inference();
-            relul_8.relu(0);
-            pooll_9.maxpool(0);
-            padl_10.zeropad(0);
-            convl_11.convolve(0);
-            batchnorml_12.inference();
-            relul_13.relu(0);
-            pooll_14.maxpool(0);
-            convl_15.convolve(0);
-            batchnorml_16.inference();
-            relul_17.relu(0);
-            affineffl_18.affine(0);
-            softmaxffl_19.softmax(0);
+            for(int i=0;i<batchsize;++i){
 
-            double currImgLoss = lossl.loss();
-            std::cout<<"current image("<<testImgInx<<") loss, correctlypredict = "<<currImgLoss<<" "<<lossl.accuratePrediction()<<std::endl;
-            currEpochAvgTestDataLoss += currImgLoss;
+                threads.push_back(std::thread([&padl_1, &convl_2, &batchnorml_3, &relul_4, &padl_5, 
+                                                &convl_6, &batchnorml_7, &relul_8, &pooll_9, &padl_10, 
+                                                &convl_11, &batchnorml_12, &relul_13, &pooll_14, &convl_15, 
+                                                &batchnorml_16, &relul_17, &affineffl_18, &softmaxffl_19](int i){
+                    padl_1.zeropad(i);
+                    convl_2.convolve(i);
+                    batchnorml_3.inference(i);
+                    relul_4.relu(i);
+                    padl_5.zeropad(i);
+                    convl_6.convolve(i);
+                    batchnorml_7.inference(i);
+                    relul_8.relu(i);
+                    pooll_9.maxpool(i);
+                    padl_10.zeropad(i);
+                    convl_11.convolve(i);
+                    batchnorml_12.inference(i);
+                    relul_13.relu(i);
+                    pooll_14.maxpool(i);
+                    convl_15.convolve(i);
+                    batchnorml_16.inference(i);
+                    relul_17.relu(i);
+                    affineffl_18.affine(i);
+                    softmaxffl_19.softmax(i);
+                }, i));
 
-            currEpochTestAccuracy += (double)lossl.accuratePrediction();
+            }
+            for(auto& t : threads){
+                t.join();
+            }
+            threads.clear();
+
+            for(int i=0;i<batchsize;++i){
+                {
+                    std::cout<<"Yffl_18["<<i<<"] = "<<std::endl;
+                    Yffl_18[i].printVector();
+                    std::cout<<"Yffl_19["<<i<<"] = "<<std::endl;
+                    Yffl_19[i].printVector();
+                    std::cout<<"Y_truth["<<i<<"] = "<<std::endl;
+                    Y_truth[i].printVector();
+                }
+                double currImgLoss = lossl.loss(i);
+                std::cout<<"current test image("<<testImgInx+i<<") loss, correctlypredict = "<<currImgLoss<<" "<<lossl.accuratePrediction(i)<<std::endl;
+                currEpochAvgTestDataLoss += currImgLoss;
+
+                currEpochTestAccuracy += (double)lossl.accuratePrediction(i);
+            }
+
+        }
         }
         /* end of test data */
         testData.inx=0;
@@ -535,6 +690,8 @@ int testtrain(){
 
         currEpochTestAccuracy /= numTestImage;
         avgTestAccuracyPerEpoch.push_back(currEpochTestAccuracy);
+        
+        std::cout<<"end epoch "<<epoch<<std::endl<<std::endl;
     }
 
     std::cout<<"avgTrainLossPerEpoch = ";
@@ -558,25 +715,34 @@ int testtrain(){
 
 
     {
+    std::cout<<"save neural net parameters to files"<<std::endl;
     convl_2.saveWToFile("model_convl_2_W.txt");
 
     batchnorml_3.saveGToFile("model_batchnorml_3_G.txt");
     batchnorml_3.saveBToFile("model_batchnorml_3_B.txt");
+    batchnorml_3.saveSumMusToFile("model_batchnorml_3_sumMu.txt");
+    batchnorml_3.saveSumSigma2sToFile("model_batchnorml_3_sumSigma2.txt");
 
     convl_6.saveWToFile("model_convl_6_W.txt");
 
     batchnorml_7.saveGToFile("model_batchnorml_7_G.txt");
     batchnorml_7.saveBToFile("model_batchnorml_7_B.txt");
+    batchnorml_7.saveSumMusToFile("model_batchnorml_7_sumMu.txt");
+    batchnorml_7.saveSumSigma2sToFile("model_batchnorml_7_sumSigma2.txt");
 
     convl_11.saveWToFile("model_convl_11_W.txt");
 
     batchnorml_12.saveGToFile("model_batchnorml_12_G.txt");
     batchnorml_12.saveBToFile("model_batchnorml_12_B.txt");
+    batchnorml_12.saveSumMusToFile("model_batchnorml_12_sumMu.txt");
+    batchnorml_12.saveSumSigma2sToFile("model_batchnorml_12_sumSigma2.txt");
 
     convl_15.saveWToFile("model_convl_15_W.txt");
 
     batchnorml_16.saveGToFile("model_batchnorml_16_G.txt");
     batchnorml_16.saveBToFile("model_batchnorml_16_B.txt");
+    batchnorml_16.saveSumMusToFile("model_batchnorml_16_sumMu.txt");
+    batchnorml_16.saveSumSigma2sToFile("model_batchnorml_16_sumSigma2.txt");
 
     affineffl_18.saveWToFile("model_affineffl_18_W.txt");
     affineffl_18.saveBToFile("model_affineffl_18_B.txt");
@@ -584,13 +750,246 @@ int testtrain(){
 
 
 
-    std::cout<<"end of main successfully reached."<<std::endl;
+    std::cout<<"end of traintest successfully reached."<<std::endl;
     delete [] trainData.arr;
     delete [] testData.arr;
     return 0;
 }
 
 
+
+
+
+
+
+
+void testall(){
+    std::vector<double> avgTestLossPerEpoch;
+    std::vector<double> avgTestAccuracyPerEpoch;
+
+    imagedata_t testData;
+    setTestData(testData);
+
+
+    const int numTrainImage = 50000;
+    const int numTestImage = 10000;
+    const int epochs = 500;
+    int batchsize = 10;
+    tensor3d * Yl_0 = newZeroTensor3dArr(3,32,32,batchsize);
+    tensor3d * Yl_1 = newZeroTensor3dArr(3,34,34,batchsize);
+    tensor3d * Yl_2 = newZeroTensor3dArr(32,32,32,batchsize);
+    tensor3d * Yl_3 = newZeroTensor3dArr(32,32,32,batchsize);
+    tensor3d * Yl_4 = newZeroTensor3dArr(32,32,32,batchsize);
+    tensor3d * Yl_5 = newZeroTensor3dArr(32,34,34,batchsize);
+    tensor3d * Yl_6 = newZeroTensor3dArr(32,32,32,batchsize);
+    tensor3d * Yl_7 = newZeroTensor3dArr(32,32,32,batchsize);
+    tensor3d * Yl_8 = newZeroTensor3dArr(32,32,32,batchsize);
+    tensor3d * Yl_9 = newZeroTensor3dArr(32,16,16,batchsize);
+    tensor3d * Yl_10 = newZeroTensor3dArr(32,18,18,batchsize);
+    tensor3d * Yl_11 = newZeroTensor3dArr(32,16,16,batchsize);
+    tensor3d * Yl_12 = newZeroTensor3dArr(32,16,16,batchsize);
+    tensor3d * Yl_13 = newZeroTensor3dArr(32,16,16,batchsize);
+    tensor3d * Yl_14 = newZeroTensor3dArr(32,8,8,batchsize);
+    tensor3d * Yl_15 = newZeroTensor3dArr(4,8,8,batchsize);
+    tensor3d * Yl_16 = newZeroTensor3dArr(4,8,8,batchsize);
+    tensor3d * Yl_17 = newZeroTensor3dArr(4,8,8,batchsize);
+    vector1d * Yffl_17 = newVector1dArrFromTensor3dArr(Yl_17,batchsize);
+    vector1d * Yffl_18 = newZeroVector1dArr(10,batchsize);
+    vector1d * Yffl_19 = newZeroVector1dArr(10,batchsize);
+
+    vector1d * Y_truth = newZeroVector1dArr(10,batchsize);
+
+    tensorZeroPad padl_1 {Yl_0,Yl_1,batchsize};
+    conv2d convl_2 {3,32,3,3,Yl_1,Yl_2,1,false,batchsize};
+    tensorBatchNorm batchnorml_3 {Yl_2,Yl_3,batchsize};
+    tensorRelu relul_4 {32,32,32,Yl_3,Yl_4,batchsize};
+    tensorZeroPad padl_5 {Yl_4,Yl_5,batchsize};
+    conv2d convl_6 {32,32,3,3,Yl_5,Yl_6,1,false,batchsize};
+    tensorBatchNorm batchnorml_7 {Yl_6,Yl_7,batchsize};
+    tensorRelu relul_8 {32,32,32,Yl_7,Yl_8,batchsize};
+    tensorMaxPool pooll_9 {Yl_8,Yl_9,batchsize};
+    tensorZeroPad padl_10 {Yl_9,Yl_10,batchsize};
+    conv2d convl_11 {32,32,3,3,Yl_10,Yl_11,1,false,batchsize};
+    tensorBatchNorm batchnorml_12 {Yl_11,Yl_12,batchsize};
+    tensorRelu relul_13 {32,16,16,Yl_12,Yl_13,batchsize};
+    tensorMaxPool pooll_14 {Yl_13,Yl_14,batchsize};
+    conv2d convl_15 {32,4,1,1,Yl_14,Yl_15,1,false,batchsize};
+    tensorBatchNorm batchnorml_16 {Yl_15,Yl_16,batchsize};
+    tensorRelu relul_17 {4,8,8,Yl_16,Yl_17,batchsize};
+    v1dAffineTransform affineffl_18 {Yffl_17,Yffl_18,batchsize};
+    v1dsoftmax softmaxffl_19 {Yffl_18,Yffl_19,batchsize};
+    v1dCrossEntropyLoss lossl {Yffl_19,Y_truth,batchsize};
+
+    
+    {
+    std::cout<<"load neural net parameters from files"<<std::endl;
+    convl_2.loadWFromFile("model_convl_2_W.txt");
+
+    batchnorml_3.loadGFromFile("model_batchnorml_3_G.txt");
+    batchnorml_3.loadBFromFile("model_batchnorml_3_B.txt");
+    batchnorml_3.loadSumMusFromFile("model_batchnorml_3_sumMu.txt");
+    batchnorml_3.loadSumSigma2sFromFile("model_batchnorml_3_sumSigma2.txt");
+
+    convl_6.loadWFromFile("model_convl_6_W.txt");
+
+    batchnorml_7.loadGFromFile("model_batchnorml_7_G.txt");
+    batchnorml_7.loadBFromFile("model_batchnorml_7_B.txt");
+    batchnorml_7.loadSumMusFromFile("model_batchnorml_7_sumMu.txt");
+    batchnorml_7.loadSumSigma2sFromFile("model_batchnorml_7_sumSigma2.txt");
+
+    convl_11.loadWFromFile("model_convl_11_W.txt");
+
+    batchnorml_12.loadGFromFile("model_batchnorml_12_G.txt");
+    batchnorml_12.loadBFromFile("model_batchnorml_12_B.txt");
+    batchnorml_12.loadSumMusFromFile("model_batchnorml_12_sumMu.txt");
+    batchnorml_12.loadSumSigma2sFromFile("model_batchnorml_12_sumSigma2.txt");
+
+    convl_15.loadWFromFile("model_convl_15_W.txt");
+
+    batchnorml_16.loadGFromFile("model_batchnorml_16_G.txt");
+    batchnorml_16.loadBFromFile("model_batchnorml_16_B.txt");
+    batchnorml_16.loadSumMusFromFile("model_batchnorml_16_sumMu.txt");
+    batchnorml_16.loadSumSigma2sFromFile("model_batchnorml_16_sumSigma2.txt");
+
+    affineffl_18.loadWFromFile("model_affineffl_18_W.txt");
+    affineffl_18.loadBFromFile("model_affineffl_18_B.txt");
+    }
+    
+
+
+    /*int epoch = 0;*/
+    for(int epoch=0;epoch<1/*epochs*/;++epoch){
+        /* do inference on test data == start current epoch testing */
+        double currEpochAvgTestDataLoss=0;
+        double currEpochTestAccuracy=0;
+        {
+        std::vector<std::thread> threads;
+
+        for(int testImgInx=0;testImgInx<20/*numTestImage*/;testImgInx+=batchsize){
+            for(int i=0;i<batchsize;++i){
+                setImageToTensorAndVector(testData, Yl_0, Y_truth, i);
+                /*std::cout<<"Yl_0["<<i<<"] = "<<std::endl;
+                Yl_0[i].printMatrixForm();*/
+            }
+
+
+            for(int i=0;i<batchsize;++i){
+
+                threads.push_back(std::thread([&padl_1, &convl_2, &batchnorml_3, &relul_4, &padl_5, 
+                                                &convl_6, &batchnorml_7, &relul_8, &pooll_9, &padl_10, 
+                                                &convl_11, &batchnorml_12, &relul_13, &pooll_14, &convl_15, 
+                                                &batchnorml_16, &relul_17, &affineffl_18, &softmaxffl_19](int i){
+                    padl_1.zeropad(i);
+                    convl_2.convolve(i);
+                    batchnorml_3.inference(i);
+                    relul_4.relu(i);
+                    padl_5.zeropad(i);
+                    convl_6.convolve(i);
+                    batchnorml_7.inference(i);
+                    relul_8.relu(i);
+                    pooll_9.maxpool(i);
+                    padl_10.zeropad(i);
+                    convl_11.convolve(i);
+                    batchnorml_12.inference(i);
+                    relul_13.relu(i);
+                    pooll_14.maxpool(i);
+                    convl_15.convolve(i);
+                    batchnorml_16.inference(i);
+                    relul_17.relu(i);
+                    affineffl_18.affine(i);
+                    softmaxffl_19.softmax(i);
+                }, i));
+
+            }
+            for(auto& t : threads){
+                t.join();
+            }
+            threads.clear();
+
+            for(int i=0;i<batchsize;++i){
+                {
+                    std::cout<<"Yffl_18["<<i<<"] = "<<std::endl;
+                    Yffl_18[i].printVector();
+                    std::cout<<"Yffl_19["<<i<<"] = "<<std::endl;
+                    Yffl_19[i].printVector();
+                    std::cout<<"Y_truth["<<i<<"] = "<<std::endl;
+                    Y_truth[i].printVector();
+                }
+                double currImgLoss = lossl.loss(i);
+                std::cout<<"current test image("<<testImgInx+i<<") loss, correctlypredict = "<<currImgLoss<<" "<<lossl.accuratePrediction(i)<<std::endl;
+                currEpochAvgTestDataLoss += currImgLoss;
+
+                currEpochTestAccuracy += (double)lossl.accuratePrediction(i);
+            }
+
+        }
+        }
+        /* end of test data */
+        testData.inx=0;
+        currEpochAvgTestDataLoss /= numTestImage;
+        avgTestLossPerEpoch.push_back(currEpochAvgTestDataLoss);
+
+        currEpochTestAccuracy /= numTestImage;
+        avgTestAccuracyPerEpoch.push_back(currEpochTestAccuracy);
+        
+        std::cout<<"end epoch "<<epoch<<std::endl<<std::endl;
+    }
+
+    std::cout<<"avgTestLossPerEpoch = ";
+    for(double val : avgTestLossPerEpoch){
+        std::cout<<val<<",";
+    }
+    std::cout<<std::endl;
+
+    std::cout<<"avgTestAccuracyPerEpoch = ";
+    for(double val : avgTestAccuracyPerEpoch){
+        std::cout<<val<<",";
+    }
+    std::cout<<std::endl;
+
+
+
+    /*{
+    std::cout<<"save neural net parameters to files"<<std::endl;
+    convl_2.saveWToFile("model_convl_2_W.txt");
+
+    batchnorml_3.saveGToFile("model_batchnorml_3_G.txt");
+    batchnorml_3.saveBToFile("model_batchnorml_3_B.txt");
+    batchnorml_3.saveSumMusToFile("model_batchnorml_3_sumMu.txt");
+    batchnorml_3.saveSumSigma2sToFile("model_batchnorml_3_sumSigma2.txt");
+
+    convl_6.saveWToFile("model_convl_6_W.txt");
+
+    batchnorml_7.saveGToFile("model_batchnorml_7_G.txt");
+    batchnorml_7.saveBToFile("model_batchnorml_7_B.txt");
+    batchnorml_7.saveSumMusToFile("model_batchnorml_7_sumMu.txt");
+    batchnorml_7.saveSumSigma2sToFile("model_batchnorml_7_sumSigma2.txt");
+
+    convl_11.saveWToFile("model_convl_11_W.txt");
+
+    batchnorml_12.saveGToFile("model_batchnorml_12_G.txt");
+    batchnorml_12.saveBToFile("model_batchnorml_12_B.txt");
+    batchnorml_12.saveSumMusToFile("model_batchnorml_12_sumMu.txt");
+    batchnorml_12.saveSumSigma2sToFile("model_batchnorml_12_sumSigma2.txt");
+
+    convl_15.saveWToFile("model_convl_15_W.txt");
+
+    batchnorml_16.saveGToFile("model_batchnorml_16_G.txt");
+    batchnorml_16.saveBToFile("model_batchnorml_16_B.txt");
+    batchnorml_16.saveSumMusToFile("model_batchnorml_16_sumMu.txt");
+    batchnorml_16.saveSumSigma2sToFile("model_batchnorml_16_sumSigma2.txt");
+
+    affineffl_18.saveWToFile("model_affineffl_18_W.txt");
+    affineffl_18.saveBToFile("model_affineffl_18_B.txt");
+    }*/
+
+
+
+    std::cout<<"end of traintest successfully reached."<<std::endl;
+    delete [] testData.arr;
+
+
+}
 
 
 

@@ -1138,8 +1138,10 @@ void saveloadtensorvector(){
 
     /*batchnorml_1.saveGToFile("Gl_1_vals.txt");
     batchnorml_1.saveBToFile("Bl_1_vals.txt");*/
+    
     batchnorml_1.loadGFromFile("Gl_1_vals.txt");
     batchnorml_1.loadBFromFile("Bl_1_vals.txt");
+    
 
     std::cout<<"testing done"<<std::endl<<std::endl;
     }
@@ -1233,7 +1235,7 @@ int main(){
     /*testvector1d();*/
     /*testv1daffinetransform();*/
     /*testv1dsoftmax();*/
-    testv1dcrossentropyloss();
+    /*testv1dcrossentropyloss();*/
     /*saveloadtensorvector();*/
     return 0;
 }
