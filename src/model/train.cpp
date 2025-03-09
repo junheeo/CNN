@@ -128,8 +128,8 @@ void testall();
 int main(){
 
 
-    traintest();
-    std::cout<<std::endl<<"run testall()"<<std::endl;
+    /*traintest();
+    std::cout<<std::endl<<"run testall()"<<std::endl;*/
     testall();
 
 
@@ -197,7 +197,7 @@ int traintest(){
     v1dsoftmax softmaxffl_19 {Yffl_18,Yffl_19,batchsize};
     v1dCrossEntropyLoss lossl {Yffl_19,Y_truth,batchsize};
 
-    /*
+    
     {
     std::cout<<"load neural net parameters from files"<<std::endl;
     convl_2.loadWFromFile("model_convl_2_W.txt");
@@ -231,11 +231,12 @@ int traintest(){
     affineffl_18.loadWFromFile("model_affineffl_18_W.txt");
     affineffl_18.loadBFromFile("model_affineffl_18_B.txt");
     }
-    */
+    
+
 
 
     /*int epoch = 0;*/
-    for(int epoch=0;epoch<1/*epochs*/;++epoch){
+    for(int epoch=0;epoch<2/*epochs*/;++epoch){
 
         /*
         std::clock_t start, finish;
@@ -245,7 +246,7 @@ int traintest(){
 
         double currEpochAvgLoss=0;
 
-        for(int batch=0;batch<1/*numTrainImage/batchsize*/;++batch){
+        for(int batch=0;batch<0/*numTrainImage/batchsize*/;++batch){
             
             tensor3d * dLdYl_0 = newZeroTensor3dArr(3,32,32,batchsize);
             tensor3d * dLdYl_1 = newZeroTensor3dArr(3,34,34,batchsize);
@@ -614,10 +615,10 @@ int traintest(){
 
 
         /* get ready for inference, especially batchnorm */
-        batchnorml_16.endOfEpoch();
+        /*batchnorml_16.endOfEpoch();
         batchnorml_12.endOfEpoch();
         batchnorml_7.endOfEpoch();
-        batchnorml_3.endOfEpoch();
+        batchnorml_3.endOfEpoch();****************************************************************************/
 
 
 
@@ -627,12 +628,14 @@ int traintest(){
         {
         std::vector<std::thread> threads;
 
-        for(int testImgInx=0;testImgInx<20/*numTestImage*/;testImgInx+=batchsize){
-            for(int i=0;i<batchsize;++i){
+        for(int testImgInx=0;testImgInx<1/*numTestImage*/;testImgInx+=batchsize){
+            for(int i=0;i<3/*batchsize*/;++i){
                 setImageToTensorAndVector(testData, Yl_0, Y_truth, i);
+                /*std::cout<<"Yl_0["<<i<<"] = "<<std::endl;
+                Yl_0[i].printMatrixForm();*/
             }
 
-            for(int i=0;i<batchsize;++i){
+            for(int i=0;i<3/*batchsize*/;++i){
 
                 threads.push_back(std::thread([&padl_1, &convl_2, &batchnorml_3, &relul_4, &padl_5, 
                                                 &convl_6, &batchnorml_7, &relul_8, &pooll_9, &padl_10, 
@@ -665,7 +668,7 @@ int traintest(){
             }
             threads.clear();
 
-            for(int i=0;i<batchsize;++i){
+            for(int i=0;i<3/*batchsize*/;++i){
                 {
                     std::cout<<"Yffl_18["<<i<<"] = "<<std::endl;
                     Yffl_18[i].printVector();
@@ -714,7 +717,7 @@ int traintest(){
 
 
 
-    {
+    /*{
     std::cout<<"save neural net parameters to files"<<std::endl;
     convl_2.saveWToFile("model_convl_2_W.txt");
 
@@ -746,7 +749,7 @@ int traintest(){
 
     affineffl_18.saveWToFile("model_affineffl_18_W.txt");
     affineffl_18.saveBToFile("model_affineffl_18_B.txt");
-    }
+    }*/
 
 
 
@@ -823,7 +826,7 @@ void testall(){
     
     {
     std::cout<<"load neural net parameters from files"<<std::endl;
-    convl_2.loadWFromFile("model_convl_2_W.txt");
+    /*convl_2.loadWFromFile("model_convl_2_W.txt");
 
     batchnorml_3.loadGFromFile("model_batchnorml_3_G.txt");
     batchnorml_3.loadBFromFile("model_batchnorml_3_B.txt");
@@ -852,7 +855,39 @@ void testall(){
     batchnorml_16.loadSumSigma2sFromFile("model_batchnorml_16_sumSigma2.txt");
 
     affineffl_18.loadWFromFile("model_affineffl_18_W.txt");
-    affineffl_18.loadBFromFile("model_affineffl_18_B.txt");
+    affineffl_18.loadBFromFile("model_affineffl_18_B.txt");*/
+
+    convl_2.loadWFromFile("model_convl_2_W.txt");
+
+    batchnorml_3.loadGFromFile("model_batchnorml_3_G.txt");
+    batchnorml_3.loadBFromFile("model_batchnorml_3_B.txt");
+    batchnorml_3.loadSumMusFromFile("model_batchnorml_3_sumMu.txt");
+    batchnorml_3.loadSumSigma2sFromFile("model_batchnorml_3_sumSigma2.txt");
+
+    convl_6.loadWFromFile("model_convl_6_W.txt");
+
+    batchnorml_7.loadGFromFile("model_batchnorml_7_G.txt");
+    batchnorml_7.loadBFromFile("model_batchnorml_7_B.txt");
+    batchnorml_7.loadSumMusFromFile("model_batchnorml_7_sumMu.txt");
+    batchnorml_7.loadSumSigma2sFromFile("model_batchnorml_7_sumSigma2.txt");
+
+    convl_11.loadWFromFile("model_convl_11_W.txt");
+
+    batchnorml_12.loadGFromFile("model_batchnorml_12_G.txt");
+    batchnorml_12.loadBFromFile("model_batchnorml_12_B.txt");
+    batchnorml_12.loadSumMusFromFile("model_batchnorml_12_sumMu.txt");
+    batchnorml_12.loadSumSigma2sFromFile("model_batchnorml_12_sumSigma2.txt");
+
+    convl_15.loadWFromFile("model_convl_15_W.txt");
+
+    batchnorml_16.loadGFromFile("model_batchnorml_16_G.txt");
+    batchnorml_16.loadBFromFile("model_batchnorml_16_B.txt");
+    batchnorml_16.loadSumMusFromFile("model_batchnorml_16_sumMu.txt");
+    batchnorml_16.loadSumSigma2sFromFile("model_batchnorml_16_sumSigma2.txt");
+
+    affineffl_18.saveWToFile("model_affineffl_18_W.txt");
+    affineffl_18.saveBToFile("model_affineffl_18_B.txt");
+
     }
     
 
@@ -865,15 +900,15 @@ void testall(){
         {
         std::vector<std::thread> threads;
 
-        for(int testImgInx=0;testImgInx<20/*numTestImage*/;testImgInx+=batchsize){
-            for(int i=0;i<batchsize;++i){
+        for(int testImgInx=0;testImgInx<1/*numTestImage*/;testImgInx+=batchsize){
+            for(int i=0;i<3/*batchsize*/;++i){
                 setImageToTensorAndVector(testData, Yl_0, Y_truth, i);
                 /*std::cout<<"Yl_0["<<i<<"] = "<<std::endl;
                 Yl_0[i].printMatrixForm();*/
             }
 
 
-            for(int i=0;i<batchsize;++i){
+            for(int i=0;i<3/*batchsize*/;++i){
 
                 threads.push_back(std::thread([&padl_1, &convl_2, &batchnorml_3, &relul_4, &padl_5, 
                                                 &convl_6, &batchnorml_7, &relul_8, &pooll_9, &padl_10, 
@@ -906,8 +941,10 @@ void testall(){
             }
             threads.clear();
 
-            for(int i=0;i<batchsize;++i){
+            for(int i=0;i<3/*batchsize*/;++i){
                 {
+                    /*std::cout<<"Yffl_17["<<i<<"] = "<<std::endl;
+                    Yffl_17[i].printVector();*/
                     std::cout<<"Yffl_18["<<i<<"] = "<<std::endl;
                     Yffl_18[i].printVector();
                     std::cout<<"Yffl_19["<<i<<"] = "<<std::endl;
@@ -985,7 +1022,7 @@ void testall(){
 
 
 
-    std::cout<<"end of traintest successfully reached."<<std::endl;
+    std::cout<<"end of testall successfully reached."<<std::endl;
     delete [] testData.arr;
 
 
