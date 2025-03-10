@@ -159,9 +159,9 @@ class tensor3d {
         }
 
         std::stringstream streamStorage;
-        streamStorage<<std::setprecision(std::numeric_limits<long double>::digits10 +1)<<arr[0];
+        streamStorage<<std::fixed<<std::setprecision(std::numeric_limits<double>::max_digits10 +3)<<arr[0];
         for(int i=1;i<arrSize;++i){
-            streamStorage<<" "<<std::setprecision(std::numeric_limits<long double>::digits10 +1)<<arr[i];
+            streamStorage<<" "<<std::fixed<<std::setprecision(std::numeric_limits<double>::max_digits10 +3)<<arr[i];
         }
         streamStorage<<"\n";
 
@@ -180,7 +180,7 @@ class tensor3d {
         {
         int i=0;
         double val;
-        while(inputFile>>std::setprecision(std::numeric_limits<long double>::digits10 +1)>>val){
+        while(inputFile>>std::setprecision(std::numeric_limits<double>::max_digits10 +3)>>std::fixed>>val){
             if(i==arrSize){
                 std::cerr<<"tensor3d loadFromFile(std::string): there are more values in file "<<fileName<<" than size of arr of tensor3d obj"<<std::endl;
                 throw 0;
@@ -317,9 +317,9 @@ class tensor4d {
         }
 
         std::stringstream streamStorage;
-        streamStorage<<std::setprecision(std::numeric_limits<long double>::digits10 +1)<<arr[0];
+        streamStorage<<std::fixed<<std::setprecision(std::numeric_limits<double>::max_digits10 +3)<<arr[0];
         for(int i=1;i<arrSize;++i){
-            streamStorage<<" "<<std::setprecision(std::numeric_limits<long double>::digits10 +1)<<arr[i];
+            streamStorage<<" "<<std::fixed<<std::setprecision(std::numeric_limits<double>::max_digits10 +3)<<arr[i];
         }
         streamStorage<<"\n";
 
@@ -338,7 +338,7 @@ class tensor4d {
         {
         int i=0;
         double val;
-        while(inputFile>>std::setprecision(std::numeric_limits<long double>::digits10 +1)>>val){
+        while(inputFile>>std::fixed>>std::setprecision(std::numeric_limits<double>::max_digits10 +3)>>val){
             if(i==arrSize){
                 std::cerr<<"tensor4d loadFromFile(std::string): there are more values in file "<<fileName;
                 std::cerr<<" than size of arr of tensor4d obj "<<rowdim<<" , "<<coldim.d<<" "<<coldim.w<<" "<<coldim.h<<std::endl;
@@ -1316,9 +1316,9 @@ class tensorBatchNorm{
             throw 0;
         }
         std::stringstream streamStorage;
-        streamStorage<<std::setprecision(std::numeric_limits<double>::digits10)<<sum_mus_per_depth[0];
+        streamStorage<<std::fixed<<std::setprecision(std::numeric_limits<double>::max_digits10 +3)<<sum_mus_per_depth[0];
         for(int i=1;i<dim.d;++i){
-            streamStorage<<" "<<std::setprecision(std::numeric_limits<double>::digits10)<<sum_mus_per_depth[i];
+            streamStorage<<" "<<std::fixed<<std::setprecision(std::numeric_limits<double>::max_digits10 +3)<<sum_mus_per_depth[i];
         }
         streamStorage<<"\n";
         std::ofstream outputFile (fileName.c_str());
@@ -1333,7 +1333,7 @@ class tensorBatchNorm{
         }
         int i=0;
         double val;
-        while(inputFile>>std::setprecision(std::numeric_limits<double>::digits10)>>val){
+        while(inputFile>>std::setprecision(std::numeric_limits<double>::max_digits10 +3)>>std::fixed>>val){
             if(dim.d == i){
                 std::cerr<<"tensorBatchNorm loadSumMusFromFile(std::string): there are more values in file "<<fileName<<" than size vector sum_mus_per_depth = "<<dim.d<<std::endl;
                 throw 0;
@@ -1349,9 +1349,9 @@ class tensorBatchNorm{
             throw 0;
         }
         std::stringstream streamStorage;
-        streamStorage<<std::setprecision(std::numeric_limits<long double>::digits10 +1)<<sum_sigma2s_per_depth[0];
+        streamStorage<<std::fixed<<std::setprecision(std::numeric_limits<double>::max_digits10 +3)<<sum_sigma2s_per_depth[0];
         for(int i=1;i<dim.d;++i){
-            streamStorage<<" "<<std::setprecision(std::numeric_limits<long double>::digits10 +1)<<sum_sigma2s_per_depth[i];
+            streamStorage<<" "<<std::fixed<<std::setprecision(std::numeric_limits<double>::max_digits10 +3)<<sum_sigma2s_per_depth[i];
         }
         streamStorage<<"\n";
         std::ofstream outputFile (fileName.c_str());
@@ -1366,7 +1366,7 @@ class tensorBatchNorm{
         }
         int i=0;
         double val;
-        while(inputFile>>std::setprecision(std::numeric_limits<long double>::digits10 +1)>>val){
+        while(inputFile>>std::fixed>>std::setprecision(std::numeric_limits<double>::max_digits10 +3)>>val){
             if(dim.d == i){
                 std::cerr<<"tensorBatchNorm loadSumSigma2sFromFile(std::string): there are more values in file "<<fileName<<" than size vector sum_mus_per_depth = "<<dim.d<<std::endl;
                 throw 0;
@@ -1375,11 +1375,11 @@ class tensorBatchNorm{
             ++i;
         }
 
-        std::cout<<"    loadSumSigma2sFromFile("<<fileName<<"): sum_sigma2s_per_depth =";
+        /*std::cout<<"    loadSumSigma2sFromFile("<<fileName<<"): sum_sigma2s_per_depth =";
         for(double a : sum_sigma2s_per_depth){
-            std::cout<<" "<<std::setprecision(std::numeric_limits<long double>::digits10 +1)<<a;
+            std::cout<<" "<<std::setprecision(std::numeric_limits<double>::max_digits10 +3)<<a;
         }
-        std::cout<<std::endl;
+        std::cout<<std::endl;*/
         inputFile.close();
     }
     
@@ -1814,9 +1814,9 @@ class vector1d {
         }
 
         std::stringstream streamStorage;
-        streamStorage<<std::setprecision(std::numeric_limits<long double>::digits10 +1)<<arr[0];
+        streamStorage<<std::fixed<<std::setprecision(std::numeric_limits<double>::max_digits10 +3)<<arr[0];
         for(int i=1;i<size;++i){
-            streamStorage<<" "<<std::setprecision(std::numeric_limits<long double>::digits10 +1)<<arr[i];
+            streamStorage<<" "<<std::fixed<<std::setprecision(std::numeric_limits<double>::max_digits10 +3)<<arr[i];
         }
         streamStorage<<"\n";
 
@@ -1843,7 +1843,7 @@ class vector1d {
         {
         int i=0;
         double val;
-        while(inputFile>>std::setprecision(std::numeric_limits<long double>::digits10 +1)>>val){
+        while(inputFile>>std::fixed>>std::setprecision(std::numeric_limits<double>::max_digits10 +3)>>val){
             if(i==size){
                 std::cerr<<"vector1d loadFromFile(std::string): there are more values in file "<<fileName<<" than size of arr of tensor3d obj"<<std::endl;
                 throw 0;

@@ -110,7 +110,7 @@ void setImageToTensorAndVector(imagedata_t & imageData, tensor3d * & ptensor3d, 
         tensorInx.w = xinx;
     for(int yinx=0;yinx<32;++yinx){
         tensorInx.h = yinx;
-        double imageVal = imageData.arr[imageDataInx] / 255;
+        double imageVal = (double) imageData.arr[imageDataInx] / 255;
         ptensor3d[pInx].setVal(tensorInx, imageVal);
         
         ++imageDataInx;
@@ -128,8 +128,8 @@ void testall();
 int main(){
 
 
-    /*traintest();
-    std::cout<<std::endl<<"run testall()"<<std::endl;*/
+    traintest();
+    std::cout<<std::endl<<"run testall()"<<std::endl;
     testall();
 
 
@@ -246,7 +246,7 @@ int traintest(){
 
         double currEpochAvgLoss=0;
 
-        for(int batch=0;batch<0/*numTrainImage/batchsize*/;++batch){
+        for(int batch=0;batch<numTrainImage/batchsize;++batch){
             
             tensor3d * dLdYl_0 = newZeroTensor3dArr(3,32,32,batchsize);
             tensor3d * dLdYl_1 = newZeroTensor3dArr(3,34,34,batchsize);
@@ -614,12 +614,47 @@ int traintest(){
         */
 
 
+
         /* get ready for inference, especially batchnorm */
-        /*batchnorml_16.endOfEpoch();
+        batchnorml_16.endOfEpoch();
         batchnorml_12.endOfEpoch();
         batchnorml_7.endOfEpoch();
-        batchnorml_3.endOfEpoch();****************************************************************************/
+        batchnorml_3.endOfEpoch();
 
+
+        /*if(epoch % 2 == 1){
+        std::cout<<"save neural net parameters to files"<<std::endl;
+        convl_2.saveWToFile("model_convl_2_W.txt");
+
+        batchnorml_3.saveGToFile("model_batchnorml_3_G.txt");
+        batchnorml_3.saveBToFile("model_batchnorml_3_B.txt");
+        batchnorml_3.saveSumMusToFile("model_batchnorml_3_sumMu.txt");
+        batchnorml_3.saveSumSigma2sToFile("model_batchnorml_3_sumSigma2.txt");
+
+        convl_6.saveWToFile("model_convl_6_W.txt");
+
+        batchnorml_7.saveGToFile("model_batchnorml_7_G.txt");
+        batchnorml_7.saveBToFile("model_batchnorml_7_B.txt");
+        batchnorml_7.saveSumMusToFile("model_batchnorml_7_sumMu.txt");
+        batchnorml_7.saveSumSigma2sToFile("model_batchnorml_7_sumSigma2.txt");
+
+        convl_11.saveWToFile("model_convl_11_W.txt");
+
+        batchnorml_12.saveGToFile("model_batchnorml_12_G.txt");
+        batchnorml_12.saveBToFile("model_batchnorml_12_B.txt");
+        batchnorml_12.saveSumMusToFile("model_batchnorml_12_sumMu.txt");
+        batchnorml_12.saveSumSigma2sToFile("model_batchnorml_12_sumSigma2.txt");
+
+        convl_15.saveWToFile("model_convl_15_W.txt");
+
+        batchnorml_16.saveGToFile("model_batchnorml_16_G.txt");
+        batchnorml_16.saveBToFile("model_batchnorml_16_B.txt");
+        batchnorml_16.saveSumMusToFile("model_batchnorml_16_sumMu.txt");
+        batchnorml_16.saveSumSigma2sToFile("model_batchnorml_16_sumSigma2.txt");
+
+        affineffl_18.saveWToFile("model_affineffl_18_W.txt");
+        affineffl_18.saveBToFile("model_affineffl_18_B.txt");
+        }*/
 
 
         /* do inference on test data == start current epoch testing */
@@ -628,14 +663,14 @@ int traintest(){
         {
         std::vector<std::thread> threads;
 
-        for(int testImgInx=0;testImgInx<1/*numTestImage*/;testImgInx+=batchsize){
-            for(int i=0;i<3/*batchsize*/;++i){
+        for(int testImgInx=0;testImgInx<20/*numTestImage*/;testImgInx+=batchsize){
+            for(int i=0;i<batchsize;++i){
                 setImageToTensorAndVector(testData, Yl_0, Y_truth, i);
                 /*std::cout<<"Yl_0["<<i<<"] = "<<std::endl;
                 Yl_0[i].printMatrixForm();*/
             }
 
-            for(int i=0;i<3/*batchsize*/;++i){
+            for(int i=0;i<batchsize;++i){
 
                 threads.push_back(std::thread([&padl_1, &convl_2, &batchnorml_3, &relul_4, &padl_5, 
                                                 &convl_6, &batchnorml_7, &relul_8, &pooll_9, &padl_10, 
@@ -668,7 +703,7 @@ int traintest(){
             }
             threads.clear();
 
-            for(int i=0;i<3/*batchsize*/;++i){
+            for(int i=0;i<batchsize;++i){
                 {
                     std::cout<<"Yffl_18["<<i<<"] = "<<std::endl;
                     Yffl_18[i].printVector();
@@ -717,7 +752,7 @@ int traintest(){
 
 
 
-    /*{
+    {
     std::cout<<"save neural net parameters to files"<<std::endl;
     convl_2.saveWToFile("model_convl_2_W.txt");
 
@@ -749,7 +784,7 @@ int traintest(){
 
     affineffl_18.saveWToFile("model_affineffl_18_W.txt");
     affineffl_18.saveBToFile("model_affineffl_18_B.txt");
-    }*/
+    }
 
 
 
