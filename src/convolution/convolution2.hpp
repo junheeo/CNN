@@ -157,6 +157,23 @@ class tensor3d {
     void saveToFile(std::string fileName){
         int arrSize = arrdim.d * arrdim.w * arrdim.h;
         if(arrSize==0){
+            std::cerr<<"tensor3d saveToFile(): tensor size is 0, nothing to store "<<arrdim.d<<" "<<arrdim.w<<" "<<arrdim.h<<std::endl;
+            throw 0;
+        }
+
+        std::ofstream file(fileName.c_str(), std::ios::binary);
+        cereal::PortableBinaryOutputArchive archive(file);
+
+        archive(arrSize);
+
+        for (int i = 0; i < arrSize; i++) {
+            archive(arr[i]);
+        }
+
+        file.close();
+        /*
+        int arrSize = arrdim.d * arrdim.w * arrdim.h;
+        if(arrSize==0){
             std::cerr<<"tensor3d storeTensor(): tensor size is 0, nothing to store "<<arrdim.d<<" "<<arrdim.w<<" "<<arrdim.h<<std::endl;
             throw 0;
         }
@@ -171,9 +188,33 @@ class tensor3d {
         std::ofstream outputFile (fileName.c_str());
         outputFile<<streamStorage.str();
         outputFile.close();
+        */
     }
 
     void loadFromFile(std::string fileName){
+        int arrSize = arrdim.d * arrdim.w * arrdim.h;
+
+        std::ifstream infile(fileName.c_str(), std::ios::binary);
+        if(!infile.is_open()){
+            std::cerr<<"tensor3d loadFromFile(std::string) cannot find(open) file "<<fileName<<std::endl;
+            throw 1;
+        }
+        cereal::PortableBinaryInputArchive inarchive(infile);
+
+        int loadSize;
+        inarchive(loadSize);
+
+        if(loadSize != arrSize){
+            std::cerr<<"tensor3d loadFromFile(std::string) there are "<<loadSize<<" many values in "<<fileName<<" but curr tensor3d object is dimension "<<arrdim.d<<" * "<<arrdim.w<<" * "<<arrdim.h<<" = "<<arrSize<<std::endl;
+            throw 1;
+        }
+        
+        for(int i=0;i<arrSize;++i){
+            inarchive(arr[i]);
+        }
+
+        infile.close();
+        /*
         int arrSize = arrdim.d * arrdim.w * arrdim.h;
         std::ifstream inputFile (fileName.c_str());
         if(!inputFile.is_open()){
@@ -193,6 +234,7 @@ class tensor3d {
         }
         }
         inputFile.close();
+        */
     }
 
 
@@ -315,6 +357,24 @@ class tensor4d {
     void saveToFile(std::string fileName){
         int arrSize = rowdim * coldim.d * coldim.w * coldim.h;
         if(arrSize==0){
+            std::cerr<<"tensor4d saveToFile(): tensor size is 0, nothing to store "<<rowdim<<" "<<coldim.d<<" "<<coldim.w<<" "<<coldim.h<<std::endl;
+            throw 0;
+        }
+
+        std::ofstream file(fileName.c_str(), std::ios::binary);
+        cereal::PortableBinaryOutputArchive archive(file);
+
+        archive(arrSize);
+
+        for (int i = 0; i < arrSize; i++) {
+            archive(arr[i]);
+        }
+
+        file.close();
+
+        /*
+        int arrSize = rowdim * coldim.d * coldim.w * coldim.h;
+        if(arrSize==0){
             std::cerr<<"tensor4d storeTensor(): tensor size is 0, nothing to store "<<rowdim<<" , "<<coldim.d<<" "<<coldim.w<<" "<<coldim.h<<std::endl;
             throw 0;
         }
@@ -329,9 +389,34 @@ class tensor4d {
         std::ofstream outputFile (fileName.c_str());
         outputFile<<streamStorage.str();
         outputFile.close();
+        */
     }
 
     void loadFromFile(std::string fileName){
+        int arrSize = rowdim * coldim.d * coldim.w * coldim.h;
+
+        std::ifstream infile(fileName.c_str(), std::ios::binary);
+        if(!infile.is_open()){
+            std::cerr<<"tensor4d loadFromFile(std::string) cannot find(open) file "<<fileName<<std::endl;
+            throw 1;
+        }
+        cereal::PortableBinaryInputArchive inarchive(infile);
+
+        int loadSize;
+        inarchive(loadSize);
+
+        if(loadSize != arrSize){
+            std::cerr<<"tensor4d loadFromFile(std::string) there are "<<loadSize<<" many values in "<<fileName<<" but curr tensor4d object is dimension "<<rowdim<<" * "<<coldim.d<<" * "<<coldim.w<<" * "<<coldim.h<<" = "<<arrSize<<std::endl;
+            throw 1;
+        }
+        
+        for(int i=0;i<arrSize;++i){
+            inarchive(arr[i]);
+        }
+
+        infile.close();
+        
+        /*
         int arrSize = rowdim * coldim.d * coldim.w * coldim.h;
         std::ifstream inputFile (fileName.c_str());
         if(!inputFile.is_open()){
@@ -352,6 +437,7 @@ class tensor4d {
         }
         }
         inputFile.close();
+        */
     }
 };
 
@@ -1318,6 +1404,23 @@ class tensorBatchNorm{
             std::cerr<<"tensorBatchNorm saveSumMusToFile("<<fileName<<") : error: dim.d = "<<dim.d<<" nothing to save"<<std::endl;
             throw 0;
         }
+
+        std::ofstream file(fileName.c_str(), std::ios::binary);
+        cereal::PortableBinaryOutputArchive archive(file);
+
+        archive(dim.d);
+
+        for (int i = 0; i < dim.d; ++i) {
+            archive(sum_mus_per_depth[i]);
+        }
+
+        file.close();
+
+        /*
+        if(dim.d<1){
+            std::cerr<<"tensorBatchNorm saveSumMusToFile("<<fileName<<") : error: dim.d = "<<dim.d<<" nothing to save"<<std::endl;
+            throw 0;
+        }
         std::stringstream streamStorage;
         streamStorage<<std::fixed<<std::setprecision(std::numeric_limits<double>::max_digits10 +3)<<sum_mus_per_depth[0];
         for(int i=1;i<dim.d;++i){
@@ -1327,8 +1430,36 @@ class tensorBatchNorm{
         std::ofstream outputFile (fileName.c_str());
         outputFile<<streamStorage.str();
         outputFile.close();
+        */
     }
     void loadSumMusFromFile(std::string fileName){
+        std::ifstream infile(fileName.c_str(), std::ios::binary);
+        if(!infile.is_open()){
+            std::cerr<<"tensorBatchNorm loadSumMusFromFile(std::string): file "<<fileName<<" not found"<<std::endl;
+            throw 0;
+        }
+        cereal::PortableBinaryInputArchive inarchive(infile);
+
+        int loadSize;
+        inarchive(loadSize);
+        if(loadSize != dim.d){
+            std::cerr<<"tensorBatchNorm loadSumMusFromFile(): file "<<fileName<<" has "<<loadSize<<" values but vector sum_mus_per_depth is size "<<dim.d<<std::endl;
+            throw 1;
+        }
+        
+        for(int i=0; i<dim.d; ++i){
+            inarchive(sum_mus_per_depth[i]);
+        }
+
+        /*std::cout<<"sum_mus_per_depth =";
+        for(int i=0; i<dim.d; ++i){
+            std::cout<<" "<<std::setprecision(std::numeric_limits<double>::max_digits10 +3)<<sum_mus_per_depth[i];
+        }
+        std::cout<<std::endl;*/
+
+        infile.close(); 
+
+        /*
         std::ifstream inputFile (fileName.c_str());
         if(!inputFile.is_open()){
             std::cerr<<"tensorBatchNorm loadSumMusFromFile(std::string): file "<<fileName<<" not found"<<std::endl;
@@ -1345,8 +1476,25 @@ class tensorBatchNorm{
             ++i;
         }
         inputFile.close();
+        */
     }
     void saveSumSigma2sToFile(std::string fileName){
+        if(dim.d<1){
+            std::cerr<<"tensorBatchNorm saveSumSigma2sToFile("<<fileName<<") : error: dim.d = "<<dim.d<<" nothing to save"<<std::endl;
+            throw 0;
+        }
+
+        std::ofstream file(fileName.c_str(), std::ios::binary);
+        cereal::PortableBinaryOutputArchive archive(file);
+
+        archive(dim.d);
+
+        for (int i = 0; i < dim.d; ++i) {
+            archive(sum_sigma2s_per_depth[i]);
+        }
+
+        file.close();
+        /*
         if(dim.d<1){
             std::cerr<<"tensorBatchNorm saveSumSigma2sToFile("<<fileName<<") : error: dim.d = "<<dim.d<<" nothing to save"<<std::endl;
             throw 0;
@@ -1360,8 +1508,35 @@ class tensorBatchNorm{
         std::ofstream outputFile (fileName.c_str());
         outputFile<<streamStorage.str();
         outputFile.close();
+        */
     }
     void loadSumSigma2sFromFile(std::string fileName){
+        std::ifstream infile(fileName.c_str(), std::ios::binary);
+        if(!infile.is_open()){
+            std::cerr<<"tensorBatchNorm loadSumsigma2sFromFile(std::string): file "<<fileName<<" not found"<<std::endl;
+            throw 0;
+        }
+        cereal::PortableBinaryInputArchive inarchive(infile);
+
+        int loadSize;
+        inarchive(loadSize);
+        if(loadSize != dim.d){
+            std::cerr<<"tensorBatchNorm loadSumSigma2sFromFile(): file "<<fileName<<" has "<<loadSize<<" values but vector sum_sigma2s_per_depth is size "<<dim.d<<std::endl;
+            throw 1;
+        }
+        
+        for(int i=0; i<dim.d; ++i){
+            inarchive(sum_sigma2s_per_depth[i]);
+        }
+
+        /*std::cout<<"    loadSumSigma2sFromFile("<<fileName<<"): sum_sigma2s_per_depth =";
+        for(int i=0; i<dim.d; ++i){
+            std::cout<<" "<<std::setprecision(std::numeric_limits<double>::max_digits10 +3)<<sum_sigma2s_per_depth[i];
+        }
+        std::cout<<std::endl;*/
+
+        infile.close(); 
+        /*
         std::ifstream inputFile (fileName.c_str());
         if(!inputFile.is_open()){
             std::cerr<<"tensorBatchNorm loadSumSigma2sFromFile(std::string): file "<<fileName<<" not found"<<std::endl;
@@ -1378,12 +1553,13 @@ class tensorBatchNorm{
             ++i;
         }
 
-        /*std::cout<<"    loadSumSigma2sFromFile("<<fileName<<"): sum_sigma2s_per_depth =";
+        std::cout<<"    loadSumSigma2sFromFile("<<fileName<<"): sum_sigma2s_per_depth =";
         for(double a : sum_sigma2s_per_depth){
             std::cout<<" "<<std::setprecision(std::numeric_limits<double>::max_digits10 +3)<<a;
         }
-        std::cout<<std::endl;*/
+        std::cout<<std::endl;
         inputFile.close();
+        */
     }
     
     void batchnorm(){
@@ -1816,6 +1992,32 @@ class vector1d {
             }
         }
 
+        if(size==0){
+            std::cerr<<"tensor4d saveToFile(): vector size is 0, nothing to store"<<std::endl;
+            throw 1;
+        }
+
+        std::ofstream file(fileName.c_str(), std::ios::binary);
+        cereal::PortableBinaryOutputArchive archive(file);
+
+        archive(size);
+
+        for (int i = 0; i < size; i++) {
+            archive(arr[i]);
+        }
+
+        file.close();
+        /*
+        if(arr==nullptr){
+            if(pt3d==nullptr){
+                std::cerr<<"vector1d saveToFile(): arr and pt3d both nullptr, nothing to save"<<std::endl;
+                throw 0;
+            }else{
+                std::cerr<<"vector1d saveToFile(): this vector1d is a proxy to a tensor3d - save the tensor3d instead directly"<<std::endl;
+                throw 0;
+            }
+        }
+
         std::stringstream streamStorage;
         streamStorage<<std::fixed<<std::setprecision(std::numeric_limits<double>::max_digits10 +3)<<arr[0];
         for(int i=1;i<size;++i){
@@ -1826,9 +2028,41 @@ class vector1d {
         std::ofstream outputFile (fileName.c_str());
         outputFile<<streamStorage.str();
         outputFile.close();
+        */
     }
 
     void loadFromFile(std::string fileName){
+        if(arr==nullptr){
+            if(pt3d==nullptr){
+                std::cerr<<"vector1d loadFromFile(): arr and pt3d both nullptr, nowhere to load"<<std::endl;
+                throw 0;
+            }else{
+                std::cerr<<"vector1d loadFromFile(): this vector1d is a proxy to a tensor3d - load the tensor3d instead directly"<<std::endl;
+                throw 0;
+            }
+        }
+
+        std::ifstream infile(fileName.c_str(), std::ios::binary);
+        if(!infile.is_open()){
+            std::cerr<<"vector1d loadFromFile(std::string) cannot find(open) file "<<fileName<<std::endl;
+            throw 1;
+        }
+        cereal::PortableBinaryInputArchive inarchive(infile);
+
+        int loadSize;
+        inarchive(loadSize);
+
+        if(loadSize != size){
+            std::cerr<<"vector1d loadFromFile(std::string) there are "<<loadSize<<" many values in "<<fileName<<" but curr vector1d object is size "<<size<<std::endl;
+            throw 1;
+        }
+        
+        for(int i=0;i<size;++i){
+            inarchive(arr[i]);
+        }
+
+        infile.close();
+        /*
         if(arr==nullptr){
             if(pt3d==nullptr){
                 std::cerr<<"vector1d loadFromFile(): arr and pt3d both nullptr, nowhere to load"<<std::endl;
@@ -1856,6 +2090,7 @@ class vector1d {
         }
         }
         inputFile.close();
+        */
     }
 
 };

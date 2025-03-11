@@ -1223,6 +1223,96 @@ void saveloadtensorvector(){
     }
 }
 
+void testcerealsaveload(){
+    /*
+    std::cout<<"test cereal save load tensor3d"<<std::endl;
+    std::vector<std::vector<std::vector<double>>> inputYl_0_batchinx1 {
+    {
+        {1.2, 1.3, 1.4, 1.5},
+        {1.6, 1.7, 1.8, 1.9},
+        {2.0, 2.1, 2.2, 2.3}
+    },
+    {
+        {2.4, 2.5, 2.6, 2.7}, 
+        {2.8, 2.9, 3.0, 3.1}, 
+        {3.2, 3.3, 3.4, 3.5}
+    }
+    };
+
+    tensor3d t3_1 (2,3,4,inputYl_0_batchinx1);
+    std::cout<<"t3_1 = "<<std::endl;
+    t3_1.printMatrixForm();
+    t3_1.saveToFile("arr_vals.bin");
+    tensor3d t3_2 (2,3,4);
+    t3_2.loadFromFile("arr_vals.bin");
+    std::cout<<"t3_2 = "<<std::endl;
+    t3_2.printMatrixForm(); std::cout<<std::endl;
+    */
+
+    /*
+    std::cout<<"test cereal save load tensor3d"<<std::endl;
+    std::vector<std::vector<std::vector<std::vector<double>>>> inputWl_1 {
+        {
+            {
+                {5,6,7},
+                {8,9,10}
+            },
+            {
+                {17,18,19},
+                {20,21,22}
+            },
+            {
+                {29,30,31},
+                {32,33,34}
+            },
+            {
+                {41,42,43},
+                {44,45,46}
+            }
+        },
+        {
+            {
+                {11,12,13},
+                {14,15,16}
+            },
+            {
+                {23,24,25},
+                {26,27,28}
+            },
+            {
+                {35,36,37},
+                {38,39,40}
+            },
+            {
+                {47,48,49},
+                {50,51,52}
+            }
+        }
+    };
+    tensor4d t4_1 (2,4,2,3,inputWl_1);
+    std::cout<<"t4_1 = "<<std::endl;
+    t4_1.printMatrixForm();
+    t4_1.saveToFile("arr_vals.bin");
+    tensor4d t4_2 (2,4,2,3);
+    t4_2.loadFromFile("arr_vals.bin");
+    std::cout<<"t4_2 = "<<std::endl;
+    t4_2.printMatrixForm(); std::cout<<std::endl;
+    */
+
+    /*
+    std::vector<double> someVector {0.1, 0.2, 0.3};
+    vector1d v1_1 (3);
+    v1_1.setVal(someVector);
+    v1_1.saveToFile("arr_vals.bin");
+    std::cout<<"v1_1 = "<<std::endl;
+    v1_1.printVector();
+    vector1d v1_2 (3);
+    v1_2.loadFromFile("arr_vals.bin");
+    std::cout<<"v1_2 = "<<std::endl;
+    v1_2.printVector();
+    */
+}
+
 int main(){
     /*testtensor(10);*/
     /*testconv2d_convolve();*/
@@ -1237,5 +1327,6 @@ int main(){
     /*testv1dsoftmax();*/
     /*testv1dcrossentropyloss();*/
     /*saveloadtensorvector();*/
+    testcerealsaveload();
     return 0;
 }
