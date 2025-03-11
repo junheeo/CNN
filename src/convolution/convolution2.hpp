@@ -7,6 +7,9 @@
 #include<sstream>
 #include<string>
 
+#include "../../external/cereal/include/cereal/archives/portable_binary.hpp"
+#include "../../external/cereal/include/cereal/types/vector.hpp"
+
 struct dim3_t {
     int d;
     int w;
