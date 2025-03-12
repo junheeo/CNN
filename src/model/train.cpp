@@ -236,7 +236,7 @@ int traintest(){
 
 
     /*int epoch = 0;*/
-    for(int epoch=0;epoch<1/*epochs*/;++epoch){
+    for(int epoch=0;epoch<2/*epochs*/;++epoch){
 
         /*
         std::clock_t start, finish;
@@ -246,7 +246,7 @@ int traintest(){
 
         double currEpochAvgLoss=0;
 
-        for(int batch=0;batch<10/*numTrainImage/batchsize*/;++batch){
+        for(int batch=0;batch<numTrainImage/batchsize;++batch){
             
             tensor3d * dLdYl_0 = newZeroTensor3dArr(3,32,32,batchsize);
             tensor3d * dLdYl_1 = newZeroTensor3dArr(3,34,34,batchsize);
@@ -622,7 +622,7 @@ int traintest(){
         batchnorml_3.endOfEpoch();
 
 
-        /*if(epoch % 2 == 1){
+        /*if(epoch % 3 == 1){
             std::cout<<"save neural net parameters to files epoch "<<epoch<<std::endl;
 
             convl_2.saveWToFile("model_convl_2_W.bin");
@@ -666,7 +666,7 @@ int traintest(){
         {
         std::vector<std::thread> threads;
 
-        for(int testImgInx=0;testImgInx<10/*numTestImage*/;testImgInx+=batchsize){
+        for(int testImgInx=0;testImgInx<numTestImage;testImgInx+=batchsize){
             for(int i=0;i<batchsize;++i){
                 setImageToTensorAndVector(testData, Yl_0, Y_truth, i);
                 /*std::cout<<"Yl_0["<<i<<"] = "<<std::endl;
@@ -707,9 +707,9 @@ int traintest(){
             threads.clear();
 
             for(int i=0;i<batchsize;++i){
-                {
-                    std::cout<<"Yffl_18["<<i<<"] = "<<std::endl;
-                    Yffl_18[i].printVector();
+                if(testImgInx == 0){
+                    /*std::cout<<"Yffl_18["<<i<<"] = "<<std::endl;
+                    Yffl_18[i].printVector();*/
                     std::cout<<"Yffl_19["<<i<<"] = "<<std::endl;
                     Yffl_19[i].printVector();
                     std::cout<<"Y_truth["<<i<<"] = "<<std::endl;
@@ -790,7 +790,27 @@ int traintest(){
     affineffl_18.saveBToFile("model_affineffl_18_B.bin");
     }
 
-
+    delete [] Yl_0;
+    delete [] Yl_1;
+    delete [] Yl_2;
+    delete [] Yl_3;
+    delete [] Yl_4;
+    delete [] Yl_5;
+    delete [] Yl_6;
+    delete [] Yl_7;
+    delete [] Yl_8;
+    delete [] Yl_9;
+    delete [] Yl_10;
+    delete [] Yl_11;
+    delete [] Yl_12;
+    delete [] Yl_13;
+    delete [] Yl_14;
+    delete [] Yl_15;
+    delete [] Yl_16;
+    delete [] Yl_17;
+    delete [] Yffl_17;
+    delete [] Yffl_18;
+    delete [] Yffl_19;
 
     std::cout<<"end of traintest successfully reached."<<std::endl;
     delete [] trainData.arr;
@@ -1031,6 +1051,28 @@ void testall(){
     affineffl_18.saveBToFile("model_affineffl_18_B.bin");
     }*/
 
+
+    delete [] Yl_0;
+    delete [] Yl_1;
+    delete [] Yl_2;
+    delete [] Yl_3;
+    delete [] Yl_4;
+    delete [] Yl_5;
+    delete [] Yl_6;
+    delete [] Yl_7;
+    delete [] Yl_8;
+    delete [] Yl_9;
+    delete [] Yl_10;
+    delete [] Yl_11;
+    delete [] Yl_12;
+    delete [] Yl_13;
+    delete [] Yl_14;
+    delete [] Yl_15;
+    delete [] Yl_16;
+    delete [] Yl_17;
+    delete [] Yffl_17;
+    delete [] Yffl_18;
+    delete [] Yffl_19;
 
     std::cout<<"end of testall successfully reached."<<std::endl;
     delete [] testData.arr;
