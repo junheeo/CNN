@@ -129,8 +129,8 @@ int main(){
 
 
     traintest();
-    std::cout<<std::endl<<"run testall()"<<std::endl;
-    testall();
+    /*std::cout<<std::endl<<"run testall()"<<std::endl;
+    testall();*/
 
 
     return 0;
@@ -198,7 +198,7 @@ int traintest(){
     v1dCrossEntropyLoss lossl {Yffl_19,Y_truth,batchsize};
 
     
-    /*{
+    {
     std::cout<<"load neural net parameters from files"<<std::endl;
     convl_2.loadWFromFile("model_convl_2_W.bin");
 
@@ -230,7 +230,8 @@ int traintest(){
 
     affineffl_18.loadWFromFile("model_affineffl_18_W.bin");
     affineffl_18.loadBFromFile("model_affineffl_18_B.bin");
-    }*/
+    std::cout<<"...end loading"<<std::endl;
+    }
     
 
 
@@ -622,7 +623,7 @@ int traintest(){
         batchnorml_3.endOfEpoch();
 
 
-        /*if(epoch % 3 == 1){
+        if(epoch % 3 == 0){
             std::cout<<"save neural net parameters to files epoch "<<epoch<<std::endl;
 
             convl_2.saveWToFile("model_convl_2_W.bin");
@@ -657,7 +658,7 @@ int traintest(){
             affineffl_18.saveBToFile("model_affineffl_18_B.bin");
 
             std::cout<<"...end save to file"<<std::endl;
-        }*/
+        }
 
 
         /* do inference on test data == start current epoch testing */
