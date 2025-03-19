@@ -1,7 +1,7 @@
 #ignore all files in bin directory
 bin/
 
-scribble.py
-.ycm_extra_conf.py
-arr_vals.bin
-.DS_Store
+./scribble.py
+./.ycm_extra_conf.py
+./arr_vals.bin
+./.DS_Store
